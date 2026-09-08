@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+.counter {
+	font-size: 16px;
+	padding: 5px 10px;
+	border-radius: 5px;
+	color: var(--accent);
+	background: var(--accent-bg);
+	border: 2px solid transparent;
+	transition: border-color 0.3s;
+	margin-bottom: 24px;
+
+	&:hover {
+		border-color: var(--accent-border);
+	}
+	&:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+}
+
+.audit-log-page {
+	font-size: 14px;
+}
+
+.audit-log-page label,
+.audit-log-page input,
+.audit-log-page select,
+.audit-log-page button,
+.audit-log-page table,
+.audit-log-page > div:last-child {
+	font-size: 14px;
+}
+
+.audit-log-page table thead {
+	font-size: 13px;
+}
+
+.audit-log-page table {
+	font-size: 13px;
+}
+
+.revenue-metrics-page {
+	font-size: 14px;
+}
+
+.revenue-metrics-page button,
+.revenue-metrics-page select,
+.revenue-metrics-page input,
+.revenue-metrics-page table {
+	font-size: 14px;
+}
+
+.revenue-metrics-page table thead {
+	font-size: 13px;
+}
