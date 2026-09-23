@@ -34,7 +34,7 @@ const menuGroups = [
     items: [
       { label: "User resources", path: "/dashboard/user-resources" },
       { label: "Staff resources", path: "/dashboard/staff-resources" },
-      { label: "Email system login", path: "#" },
+      // { label: "Email system login", path: "#" },
       { label: "Support tickets", path: "/dashboard/support-tickets" },
     ],
   },

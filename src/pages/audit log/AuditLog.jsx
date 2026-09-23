@@ -56,7 +56,7 @@ const filterOptions = {
     'Revenue metrics',
     'User resources',
     'Staff resources',
-    'Email system login',
+    // 'Email system login',
     'Support tickets',
     'Audit logs',
     'Data protection',
