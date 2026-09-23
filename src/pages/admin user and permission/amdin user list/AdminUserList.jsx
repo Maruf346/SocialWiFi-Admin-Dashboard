@@ -1,22 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-
-const initialAdminUsers = [
-  { name: "John Doe", role: "Super Admin", id: "USR-1001", status: "Allowed" },
-  { name: "Suzy Cue", role: "Fleet Acct Mgmt", id: "USR-1785", status: "Allowed" },
-  { name: "G. I. Joe", role: "Customer Support", id: "USR-1513", status: "Locked" },
-  { name: "Tom Thumb", role: "Revenue Metrics", id: "USR-2549", status: "Allowed" },
-  { name: "Jimmy Hendrix", role: "Subscription Mgmt", id: "USR-8391", status: "Allowed" },
-  { name: "Sponge Bob", role: "Audit Log Mgmt", id: "USR-0127", status: "Allowed" },
-  { name: "Robin Hood", role: "Marketing", id: "USR-4567", status: "Allowed" },
-];
+import {
+  getAdminUsers,
+  deleteAdminUsers,
+  updateAdminUsersStatus,
+} from "../../../utils/adminUsersStorage";
 
 const AdminUserList = () => {
-  const [users, setUsers] = useState(initialAdminUsers);
+  const [users, setUsers] = useState(getAdminUsers);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [action, setAction] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleStorageUpdate = () => {
+      setUsers(getAdminUsers());
+    };
+    window.addEventListener("admin_users_updated", handleStorageUpdate);
+    return () =>
+      window.removeEventListener("admin_users_updated", handleStorageUpdate);
+  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -36,31 +40,30 @@ const AdminUserList = () => {
   };
 
   const handleApplyAction = () => {
-    if (!action) return;
+    if (!action) {
+      showToast("Please select an action from the dropdown");
+      return;
+    }
     if (selectedUsers.length === 0) {
       showToast("No users selected");
       return;
     }
 
     if (action === "delete") {
-      setUsers((prev) => prev.filter((u) => !selectedUsers.includes(u.id)));
+      deleteAdminUsers(selectedUsers);
+      setUsers(getAdminUsers());
       setSelectedUsers([]);
-      showToast("Selected users deleted");
+      showToast("Selected users deleted successfully");
     } else if (action === "lock") {
-      setUsers((prev) =>
-        prev.map((u) =>
-          selectedUsers.includes(u.id) ? { ...u, status: "Locked" } : u
-        )
-      );
-      showToast("Selected users locked");
+      updateAdminUsersStatus(selectedUsers, "Locked");
+      setUsers(getAdminUsers());
+      showToast("Selected users locked successfully");
     } else if (action === "unlock") {
-      setUsers((prev) =>
-        prev.map((u) =>
-          selectedUsers.includes(u.id) ? { ...u, status: "Allowed" } : u
-        )
-      );
-      showToast("Selected users unlocked");
+      updateAdminUsersStatus(selectedUsers, "Allowed");
+      setUsers(getAdminUsers());
+      showToast("Selected users unlocked successfully");
     }
+    setAction("");
   };
 
   return (
@@ -186,7 +189,17 @@ const AdminUserList = () => {
                     </td>
                     <td className="px-3 py-1 text-[#666]">{user.role}</td>
                     <td className="px-3 py-1 text-[#666]">{user.id}</td>
-                    <td className="px-3 py-1 text-[#666]">{user.status}</td>
+                    <td className="px-3 py-1 text-[#666]">
+                      <span
+                        className={
+                          user.status === "Locked"
+                            ? "font-semibold text-[#b40000]"
+                            : "text-[#666]"
+                        }
+                      >
+                        {user.status}
+                      </span>
+                    </td>
                   </tr>
                 );
               })

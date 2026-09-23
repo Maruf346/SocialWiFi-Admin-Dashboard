@@ -93,31 +93,26 @@ const UserResource = () => {
           UPLOAD RESOURCE <span className="text-base font-bold">+</span>
         </button>
       </div>
-      <div className="mb-2 flex flex-wrap items-end gap-2 text-sm">
-        <div className="mr-auto">
-          <label htmlFor="resource-action" className="block">
-            Delete selected resources
-          </label>
-          <div className="mt-1 flex items-center gap-1">
-            <select
-              id="resource-action"
-              defaultValue=""
-              className="h-8 w-60 border border-[#ccc] bg-white px-2"
-            >
-              <option value="">-----------</option>
-              <option value="delete">Delete selected resources</option>
-            </select>
-            <button
-              type="button"
-              onClick={deleteSelected}
-              className="h-8 border border-[#ccc] bg-[#f4f4f4] px-2 text-xs cursor-pointer"
-            >
-              Go
-            </button>
-            <span className="ml-2 text-xs">
-              {selectedResources.length} of {resources.length} selected
-            </span>
-          </div>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div className="flex items-center gap-1">
+          <select
+            id="resource-action"
+            defaultValue=""
+            className="h-8 w-60 border border-[#ccc] bg-white px-2 text-xs outline-none"
+          >
+            <option value="">-----------</option>
+            <option value="delete">Delete selected resources</option>
+          </select>
+          <button
+            type="button"
+            onClick={deleteSelected}
+            className="h-8 border border-[#ccc] bg-[#f4f4f4] px-3 text-xs cursor-pointer"
+          >
+            Go
+          </button>
+          <span className="ml-2 text-xs">
+            {selectedResources.length} of {resources.length} selected
+          </span>
         </div>
         <label htmlFor="resource-search">
           Search:
