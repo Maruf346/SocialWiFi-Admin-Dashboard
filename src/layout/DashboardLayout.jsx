@@ -16,7 +16,7 @@ const breadcrumbMap = {
   '/dashboard/revenue-metrics': ['Home', 'Reporting & Analytics', 'REVENUE METRICS'],
   '/dashboard/team-users': ['Home', 'User Account Management', 'MANAGE TEAMS'],
   '/dashboard/single-user': ['Home', 'User Account Management', 'MANAGE SINGLE USERS'],
-  '/dashboard/fleet-user': ['Home', 'User Account Management', 'MANAGE FLEET USERS'],
+  '/dashboard/fleet-user': ['Home', 'User Account Management', 'MANAGE FLEETS'],
   '/dashboard/subscription-payment': ['Home', 'Income & Expenses', 'SUBSCRIPTION PAYMENTS'],
   '/dashboard/fleet-payments': ['Home', 'Income & Expenses', 'FLEET PAYMENTS'],
   '/dashboard/expenses': ['Home', 'Income & Expenses', 'EXPENSES'],
