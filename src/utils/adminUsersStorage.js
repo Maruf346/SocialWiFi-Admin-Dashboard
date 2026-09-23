@@ -122,13 +122,17 @@ export const permissionGroups = [
     title: "ADMIN USERS & PERMISSIONS",
     items: ["Admin user list", "Add user"],
   },
+  // {
+  //   title: "SUBSCRIPTION PLANS",
+  //   items: ["Plans list / edit / create"],
+  // },
+  // {
+  //   title: "DISCOUNT CODES / COUPONS",
+  //   items: ["List / manage / create"],
+  // },
   {
-    title: "SUBSCRIPTION PLANS",
-    items: ["Plans list / edit / create"],
-  },
-  {
-    title: "DISCOUNT CODES / COUPONS",
-    items: ["List / manage / create"],
+    title: "REPORTING & ANALYTICS",
+    items: ["Revenue metrics"],
   },
   {
     title: "USER ACCOUNT MANAGEMENT",
@@ -137,10 +141,6 @@ export const permissionGroups = [
   {
     title: "INCOME & EXPENSES",
     items: ["Subscription payments", "Fleet payments", "Expenses"],
-  },
-  {
-    title: "REPORTING & ANALYTICS",
-    items: ["Revenue metrics"],
   },
   {
     title: "SUPPORT TOOLS",

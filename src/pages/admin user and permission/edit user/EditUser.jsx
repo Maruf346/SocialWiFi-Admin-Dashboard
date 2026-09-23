@@ -205,7 +205,7 @@ const EditUser = () => {
         </div>
 
         {/* Permissions Section */}
-        <fieldset className="flex border-b border-[#e5e5e5] py-4">
+        <fieldset className="mt-4 flex border-b border-[#e5e5e5] py-4">
           <legend className="w-36 px-2 text-xs font-semibold text-[#555]">
             Permissions:
           </legend>
