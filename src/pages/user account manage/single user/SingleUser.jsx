@@ -35,7 +35,7 @@ const initialSingleUsers = [
     state: "California",
     platform: "Android",
     locked: "No",
-    notes: "Requested billing receipt for August.",
+    notes: "",
   },
   {
     id: 3,
@@ -455,6 +455,11 @@ const SingleUser = () => {
   };
 
   const handleDownload = () => {
+    if (selectedIds.length === 0) {
+      showToast("No users selected to download");
+      return;
+    }
+    const targetUsers = users.filter((u) => selectedIds.includes(u.id));
     const headers = [
       "Name",
       "Email",
@@ -467,7 +472,7 @@ const SingleUser = () => {
       "Platform",
       "Locked",
     ];
-    const rows = filteredUsers.map((u) => [
+    const rows = targetUsers.map((u) => [
       `"${u.name}"`,
       `"${u.email}"`,
       `"${u.plan}"`,
@@ -489,7 +494,7 @@ const SingleUser = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("User list downloaded as CSV");
+    showToast("Selected users downloaded as CSV");
   };
 
   const handleReset = () => {
@@ -565,7 +570,7 @@ const SingleUser = () => {
   };
 
   return (
-    <div className="min-h-full bg-white px-2 py-3 text-[13px] text-[#555] md:px-5 md:py-4">
+    <div className="min-h-full bg-white px-2 py-3 text-[13px] text-[#555] md:px-8 md:py-6">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2.5 text-sm text-white shadow-lg transition-all">
@@ -575,7 +580,9 @@ const SingleUser = () => {
 
       {/* Header Info */}
       <div className="mb-4">
-        <h1 className="mb-2 text-xl font-normal text-[#999]">Manage single users</h1>
+        <h1 className="mb-2 text-xl font-normal text-[#999] md:text-2xl">
+          Manage single users
+        </h1>
         <div className="space-y-0.5 font-bold text-[#222]">
           <p>Total: {totalCount}</p>
           <p>Total monthly: {totalMonthlyCount}</p>
@@ -593,7 +600,10 @@ const SingleUser = () => {
               <span className="text-[#666]">Filter:</span>
               <select
                 value={filterInput}
-                onChange={(e) => setFilterInput(e.target.value)}
+                onChange={(e) => {
+                  setFilterInput(e.target.value);
+                  setSelectedIds([]);
+                }}
                 className="h-6 rounded border border-[#ccc] bg-white px-1 text-xs outline-none"
               >
                 <option value="All">All</option>
@@ -605,7 +615,10 @@ const SingleUser = () => {
               </select>
               <button
                 type="button"
-                onClick={() => setFilter(filterInput)}
+                onClick={() => {
+                  setFilter(filterInput);
+                  setSelectedIds([]);
+                }}
                 className="h-6 rounded border border-[#ccc] bg-[#efefef] px-2.5 text-xs font-normal text-[#333] hover:bg-[#e4e4e4] active:bg-[#d5d5d5] cursor-pointer"
               >
                 Go
@@ -618,12 +631,20 @@ const SingleUser = () => {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearch(searchInput.trim());
+                    setSelectedIds([]);
+                  }
+                }}
                 className="h-6 w-32 rounded border border-[#ccc] bg-white px-2 text-xs outline-none md:w-44"
               />
               <button
                 type="button"
-                onClick={() => setSearch(searchInput.trim())}
+                onClick={() => {
+                  setSearch(searchInput.trim());
+                  setSelectedIds([]);
+                }}
                 className="h-6 rounded border border-[#ccc] bg-[#efefef] px-2.5 text-xs font-normal text-[#333] hover:bg-[#e4e4e4] active:bg-[#d5d5d5] cursor-pointer"
               >
                 Go
@@ -663,6 +684,7 @@ const SingleUser = () => {
                   filteredUsers.map((user) => {
                     const isSelected = selectedIds.includes(user.id);
                     const isActive = activeUserId === user.id;
+                    const isLocked = user.locked === "Yes";
                     return (
                       <tr
                         key={user.id}
@@ -684,7 +706,13 @@ const SingleUser = () => {
                             aria-label={`Select ${user.name}`}
                           />
                         </td>
-                        <td className="px-3 py-1 font-normal text-[#444] whitespace-nowrap">
+                        <td
+                          className={`px-3 py-1 whitespace-nowrap ${
+                            isLocked
+                              ? "font-bold text-red-600"
+                              : "font-normal text-[#444]"
+                          }`}
+                        >
                           {user.name}
                         </td>
                         <td className="px-3 py-1 text-[#666] whitespace-nowrap">
@@ -914,8 +942,7 @@ const SingleUser = () => {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, notes: e.target.value })
                     }
-                    placeholder="Text field box where we can type in info about this user such as notes from tech support, etc."
-                    className="w-full rounded-sm border border-[#ccc] p-2 text-xs text-[#444] outline-none focus:border-[#ff823d] placeholder:text-[#aaa] resize-y"
+                    className="w-full rounded-sm border border-[#ccc] p-2 text-xs text-[#444] outline-none focus:border-[#ff823d] resize-y"
                   />
                 </div>
               </form>

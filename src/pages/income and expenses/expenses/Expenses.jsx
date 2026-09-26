@@ -404,9 +404,9 @@ const Expenses = () => {
   };
 
   return (
-    <div className="min-h-full bg-[#f7f7f7] px-3 py-3 text-[#666] md:px-4">
-      <div className="mb-3">
-        <h1 className="text-[24px] font-normal text-[#2d2d2d]">Expenses</h1>
+    <div className="min-h-full bg-white px-2 py-3 text-[#666] md:px-8 md:py-6">
+      <div className="mb-8">
+        <h1 className="text-xl font-normal text-[#999] md:text-2xl">Expenses</h1>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[440px_minmax(0,1fr)]">

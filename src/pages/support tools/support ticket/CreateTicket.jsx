@@ -346,10 +346,10 @@ const CreateTicket = () => {
   return (
     <form
       onSubmit={submitTicket}
-      className="min-h-full px-2 py-2 text-[#777] md:px-4 md:py-3"
+      className="min-h-full bg-white px-2 py-3 text-[#777] md:px-8 md:py-6"
     >
-      <div className="mb-6">
-        <h1 className="text-2xl font-normal text-[#999]">Create Ticket</h1>
+      <div className="mb-8">
+        <h1 className="text-xl font-normal text-[#999] md:text-2xl">Create Ticket</h1>
         <p className="mt-2 text-sm">
           Create a support ticket from phone calls, direct emails or internal
           reports.

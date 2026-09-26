@@ -28,6 +28,14 @@ const DashboardLayout = () => {
 
   const breadcrumb = location.pathname.startsWith('/dashboard/edit-user/')
     ? ['Home', 'Admin Users & Permissions', 'ADMIN USER EDIT']
+    : location.pathname.startsWith('/dashboard/support-tickets/')
+    ? ['Home', 'Support Tools', 'SUPPORT TICKETS', 'TICKET DETAILS']
+    : location.pathname.startsWith('/dashboard/single-route-history/')
+    ? ['Home', 'User Account Management', 'MANAGE SINGLE USERS', 'ROUTE HISTORY']
+    : location.pathname.startsWith('/dashboard/team-route-history/')
+    ? ['Home', 'User Account Management', 'MANAGE TEAMS', 'ROUTE HISTORY']
+    : location.pathname.startsWith('/dashboard/fleet-route-history/')
+    ? ['Home', 'User Account Management', 'MANAGE FLEETS', 'ROUTE HISTORY']
     : breadcrumbMap[location.pathname] || ['Home'];
 
   const handleMenuClick = () => {

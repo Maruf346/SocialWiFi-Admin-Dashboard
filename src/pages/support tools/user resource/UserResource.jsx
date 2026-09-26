@@ -1,20 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 
-const resourceNames = [
-  "Single-User-Guide.pdf",
-  "Team-Manager-User-Guide.pdf",
-  "Fleet-Drivers-User-Guide.pdf",
-  "RightRoute Promo Video 01.mp4",
-  "RightRoute Promo Video 02.mp4",
-  "Fleet Contract Template.docx",
-  "List of User Testimonials.docx",
-];
-
-const initialResources = resourceNames.map((name, index) => ({
-  id: `resource-${index}`,
-  name,
-  url: null,
-}));
+const initialResources = [];
 
 const UserResource = () => {
   const [resources, setResources] = useState(initialResources);
@@ -82,13 +68,15 @@ const UserResource = () => {
   };
 
   return (
-    <div className="min-h-full px-2 py-2 text-[#777] md:px-4 md:py-3">
-      <div className="mb-12 flex items-center justify-between">
-        <h1 className="text-2xl font-normal text-[#999]">User resources</h1>
+    <div className="min-h-full bg-white px-2 py-3 text-[#777] md:px-8 md:py-6">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-xl font-normal text-[#999] md:text-2xl">
+          User resources
+        </h1>
         <button
           type="button"
           onClick={() => setUploadOpen(true)}
-          className="rounded-full bg-[#777] px-3 py-1 text-xs text-white cursor-pointer"
+          className="rounded-full bg-[#777] px-3 py-1 text-xs text-white cursor-pointer hover:bg-[#666]"
         >
           UPLOAD RESOURCE <span className="text-base font-bold">+</span>
         </button>
@@ -154,40 +142,48 @@ const UserResource = () => {
             </tr>
           </thead>
           <tbody>
-            {visibleResources.map((resource) => (
-              <tr
-                key={resource.id}
-                className="border-b border-white bg-[#f7f7f7] even:bg-[#fbfbfb]"
-              >
-                <td className="px-2 py-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedResources.includes(resource.id)}
-                    onChange={() => toggleResource(resource.id)}
-                    aria-label={`Select ${resource.name}`}
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <button
-                    type="button"
-                    onClick={() => openResource(resource)}
-                    className="font-semibold underline underline-offset-2 hover:text-[#ff823d]"
-                  >
-                    {resource.name}
-                  </button>
-                </td>
-                <td className="px-2 py-2">
-                  <button
-                    type="button"
-                    onClick={() => downloadResource(resource)}
-                    disabled={!resource.url}
-                    className="rounded border border-[#bbb] bg-[#f5f5f5] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Download
-                  </button>
+            {visibleResources.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="py-8 text-center text-[#888]">
+                  No resources available.
                 </td>
               </tr>
-            ))}
+            ) : (
+              visibleResources.map((resource) => (
+                <tr
+                  key={resource.id}
+                  className="border-b border-white bg-[#f7f7f7] even:bg-[#fbfbfb]"
+                >
+                  <td className="px-2 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedResources.includes(resource.id)}
+                      onChange={() => toggleResource(resource.id)}
+                      aria-label={`Select ${resource.name}`}
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => openResource(resource)}
+                      className="font-semibold underline underline-offset-2 hover:text-[#ff823d]"
+                    >
+                      {resource.name}
+                    </button>
+                  </td>
+                  <td className="px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => downloadResource(resource)}
+                      disabled={!resource.url}
+                      className="rounded border border-[#bbb] bg-[#f5f5f5] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Download
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

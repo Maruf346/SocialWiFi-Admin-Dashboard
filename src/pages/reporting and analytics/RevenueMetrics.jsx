@@ -57,8 +57,8 @@ const RevenueMetrics = () => {
 	const applyCustomRange = () => setPeriod(customRange.start && customRange.end ? 'Custom Range' : period)
 
 	return (
-		<div className="revenue-metrics-page min-h-full px-2 py-2 text-[#777] md:px-4 md:py-3">
-			<h1 className="mb-4 text-2xl font-normal text-[#999]">Revenue metrics</h1>
+		<div className="revenue-metrics-page min-h-full bg-white px-2 py-3 text-[#777] md:px-8 md:py-6">
+			<h1 className="mb-8 text-xl font-normal text-[#999] md:text-2xl">Revenue metrics</h1>
 			<div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
 				<button type="button" onClick={() => setPeriod('Last 30 Days')} className={`rounded border px-2 py-1 ${period === 'Last 30 Days' ? 'border-[#ff823d] bg-[#ff823d] text-white' : 'border-[#ccc] bg-white text-[#666]'}`}>Last 30 Days</button>
 				<select value={quarter} onChange={(event) => selectPeriod(event.target.value, 'quarter')} className="rounded border border-[#ccc] bg-white px-2 py-1 text-[#666]">{getQuarterOptions(today).map((item) => <option key={item}>{item}</option>)}</select>

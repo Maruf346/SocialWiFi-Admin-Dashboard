@@ -21,6 +21,7 @@ import EditUser from "../pages/admin user and permission/edit user/EditUser";
 // support tools 
 import UserResource from "../pages/support tools/user resource/UserResource";
 import SupportTicket from "../pages/support tools/support ticket/SupportTicket";
+import TicketDetails from "../pages/support tools/support ticket/TicketDetails";
 import CreateTicket from "../pages/support tools/support ticket/CreateTicket";
 import StaffResource from "../pages/support tools/staff resource/StaffResource";
 // REPORTING & ANALYTICS
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
         {path: "audit-log", element: <AuditLog />},
         {path: "user-resources", element: <UserResource />},
         {path: "support-tickets", element: <SupportTicket />},
+        {path: "support-tickets/:ticketId", element: <TicketDetails />},
         {path: "create-ticket", element: <CreateTicket />},
         {path: "staff-resources", element: <StaffResource />},
         {path: "revenue-metrics", element: <RevenueMetrics />},

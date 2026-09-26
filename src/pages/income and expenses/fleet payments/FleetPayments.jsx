@@ -243,9 +243,9 @@ const FleetPayments = () => {
   const yearOptions = Array.from({ length: 12 }, (_, index) => visibleMonth.getFullYear() - 5 + index)
 
   return (
-    <div className="min-h-full px-2 py-2 text-[#666] md:px-4 md:py-3">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-[24px] font-normal text-[#2d2d2d]">Fleet payments</h1>
+    <div className="min-h-full bg-white px-2 py-3 text-[#666] md:px-8 md:py-6">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-xl font-normal text-[#999] md:text-2xl">Fleet payments</h1>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[440px_minmax(0,1fr)]">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { Eye, EyeOff } from "lucide-react";
 import {
   saveAdminUser,
   permissionGroups,
@@ -10,15 +11,41 @@ const AddUser = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    password: "",
     phone: "",
     role: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [toastMessage, setToastMessage] = useState("");
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 2500);
+  };
+
+  const generateStrongPassword = () => {
+    const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lowercase = "abcdefghijkmnpqrstuvwxyz";
+    const numbers = "23456789";
+    const symbols = "!@#$%^&*";
+    const all = uppercase + lowercase + numbers + symbols;
+
+    let pwd = "";
+    pwd += uppercase[Math.floor(Math.random() * uppercase.length)];
+    pwd += lowercase[Math.floor(Math.random() * lowercase.length)];
+    pwd += numbers[Math.floor(Math.random() * numbers.length)];
+    pwd += symbols[Math.floor(Math.random() * symbols.length)];
+
+    for (let i = 4; i < 14; i++) {
+      pwd += all[Math.floor(Math.random() * all.length)];
+    }
+
+    // Shuffle
+    const shuffled = pwd.split("").sort(() => 0.5 - Math.random()).join("");
+    setFormData((prev) => ({ ...prev, password: shuffled }));
+    setShowPassword(true);
+    showToast("Strong password generated");
   };
 
   const handleToggleGroup = (group) => {
@@ -56,6 +83,7 @@ const AddUser = () => {
       id: newId,
       name: formData.name.trim(),
       email: formData.email.trim(),
+      password: formData.password.trim(),
       phone: formData.phone.trim() || "N/A",
       role: formData.role.trim() || "Staff",
       status: "Allowed",
@@ -67,7 +95,7 @@ const AddUser = () => {
   };
 
   return (
-    <div className="min-h-full bg-white px-2 py-3 text-[12px] text-[#666] md:px-10 md:py-6">
+    <div className="min-h-full bg-white px-2 py-3 text-[12px] text-[#666] md:px-8 md:py-6">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2 text-sm text-white shadow-lg transition-all">
@@ -113,6 +141,41 @@ const AddUser = () => {
               aria-label="Email"
               className="h-7 w-60 rounded border border-[#d5d5d5] px-2 text-xs text-gray-700 outline-none focus:border-[#1d2464]"
             />
+          </div>
+
+          <div className="flex items-center border-b border-[#e5e5e5] pb-2">
+            <label className="w-36 px-2 text-xs font-semibold text-[#555]">
+              Password:
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex items-center">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  placeholder="Create user password"
+                  aria-label="Password"
+                  className="h-7 w-60 rounded border border-[#d5d5d5] px-2 pr-8 text-xs text-gray-700 outline-none focus:border-[#1d2464]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={generateStrongPassword}
+                className="text-xs text-[#0066cc] underline hover:text-[#004999] cursor-pointer font-medium"
+              >
+                Generate strong password
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center border-b border-[#e5e5e5] pb-2">

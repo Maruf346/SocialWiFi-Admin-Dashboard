@@ -1,101 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-
-const initialLiveTickets = [
-  {
-    id: "RR-2026-00074",
-    priority: "High",
-    status: "New",
-    customer: "J. Smith",
-    category: "Route/Nav",
-    subject: "Route mismatch",
-    assigned: "-",
-  },
-  {
-    id: "RR-2026-00073",
-    priority: "Normal",
-    status: "Open",
-    customer: "A. Jones",
-    category: "Billing/Sub",
-    subject: "Trial issue",
-    assigned: "Jocelyn",
-  },
-  {
-    id: "RR-2026-00072",
-    priority: "Urgent",
-    status: "Open",
-    customer: "J. Caulerin",
-    category: "App Issue",
-    subject: "App crash",
-    assigned: "Nahid",
-  },
-  {
-    id: "RR-2026-00071",
-    priority: "Low",
-    status: "Open",
-    customer: "T. Allen",
-    category: "Feature Req",
-    subject: "Offline maps",
-    assigned: "Mahdi",
-  },
-  {
-    id: "RR-2026-00070",
-    priority: "Normal",
-    status: "Open",
-    customer: "M. Erickson",
-    category: "Acct Changes",
-    subject: "Update acct info",
-    assigned: "Brad",
-  },
-];
-
-const initialArchivedTickets = [
-  {
-    id: "RR-2026-00017",
-    priority: "High",
-    status: "Closed",
-    customer: "T. Makela",
-    category: "Route/Nav",
-    subject: "Route mismatch",
-    assigned: "Mahdi",
-  },
-  {
-    id: "RR-2026-00016",
-    priority: "Normal",
-    status: "Closed",
-    customer: "W Shatner",
-    category: "App Issue",
-    subject: "App freezes",
-    assigned: "Nahid",
-  },
-  {
-    id: "RR-2026-00015",
-    priority: "Low",
-    status: "Closed",
-    customer: "B. Lee",
-    category: "Gen Question",
-    subject: "Feedback",
-    assigned: "Jocelyn",
-  },
-  {
-    id: "RR-2026-00014",
-    priority: "Low",
-    status: "Closed",
-    customer: "O. Johnson",
-    category: "Feature Req",
-    subject: "Dashboard",
-    assigned: "Brad",
-  },
-  {
-    id: "RR-2026-00013",
-    priority: "Normal",
-    status: "Closed",
-    customer: "J. Hess",
-    category: "Team Mag",
-    subject: "Fleet setup",
-    assigned: "Damon",
-  },
-];
+import {
+  getLiveTickets,
+  getArchivedTickets,
+  saveLiveTickets,
+  saveArchivedTickets,
+  defaultLiveTickets,
+  defaultArchivedTickets,
+} from "../../../utils/ticketStorage";
+import { getAdminUsers } from "../../../utils/adminUsersStorage";
 
 const TicketTable = ({
   title,
@@ -104,6 +17,7 @@ const TicketTable = ({
   onToggle,
   onToggleAll,
   onApplyAction,
+  onRowClick,
 }) => {
   const [selectedAction, setSelectedAction] = useState("");
 
@@ -152,7 +66,7 @@ const TicketTable = ({
                   aria-label={`Select all ${title.toLowerCase()}`}
                 />
               </th>
-              <th className="px-2 py-2">Live tickets</th>
+              <th className="px-2 py-2">Ticket ID</th>
               <th className="px-2 py-2">Priority</th>
               <th className="px-2 py-2">Status</th>
               <th className="px-2 py-2">Customer</th>
@@ -172,9 +86,10 @@ const TicketTable = ({
               tickets.map((ticket) => (
                 <tr
                   key={ticket.id}
-                  className="border-b border-white bg-[#f8f8f8] even:bg-[#fcfcfc]"
+                  onClick={() => onRowClick(ticket.id)}
+                  className="border-b border-white bg-[#f8f8f8] even:bg-[#fcfcfc] hover:bg-[#f0f3fa] cursor-pointer transition-colors"
                 >
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.includes(ticket.id)}
@@ -185,6 +100,10 @@ const TicketTable = ({
                   <td className="px-2 py-2">
                     <button
                       type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRowClick(ticket.id);
+                      }}
                       className="font-semibold underline underline-offset-2 hover:text-[#ff823d] cursor-pointer"
                     >
                       {ticket.id}
@@ -216,10 +135,10 @@ const TicketTable = ({
       </div>
       <div className="flex items-center justify-between border-b border-[#eee] py-3 text-xs text-[#777]">
         <span>
-          Showing 1-{tickets.length} of {title === "Live Tickets" ? 57 : 17}
+          Showing 1-{tickets.length} of {tickets.length} results
         </span>
         <span className="underline cursor-pointer">
-          Previous &nbsp; 1 &nbsp; 2 &nbsp; 3 &nbsp; Next
+          Previous &nbsp; 1 &nbsp; Next
         </span>
       </div>
     </section>
@@ -228,13 +147,22 @@ const TicketTable = ({
 
 const SupportTicket = () => {
   const navigate = useNavigate();
-  const [live, setLive] = useState(initialLiveTickets);
-  const [archived, setArchived] = useState(initialArchivedTickets);
+  const [live, setLive] = useState([]);
+  const [archived, setArchived] = useState([]);
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedAdminName, setSelectedAdminName] = useState("");
+  const [adminUsers, setAdminUsers] = useState([]);
+
+  useEffect(() => {
+    setLive(getLiveTickets());
+    setArchived(getArchivedTickets());
+    setAdminUsers(getAdminUsers());
+  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -292,39 +220,78 @@ const SupportTicket = () => {
     }
 
     if (action === "close") {
-      setLive((prev) =>
-        prev.map((t) =>
+      // Find selected tickets from live and mark as Closed
+      const closingFromLive = live
+        .filter((t) => selected.includes(t.id))
+        .map((t) => ({ ...t, status: "Closed" }));
+
+      const remainingLive = live.filter((t) => !selected.includes(t.id));
+      const updatedArchived = [
+        ...closingFromLive,
+        ...archived.map((t) =>
           selected.includes(t.id) ? { ...t, status: "Closed" } : t
-        )
-      );
-      showToast("Selected tickets marked as Closed");
+        ),
+      ];
+
+      setLive(remainingLive);
+      setArchived(updatedArchived);
+      saveLiveTickets(remainingLive);
+      saveArchivedTickets(updatedArchived);
+      setSelected([]);
+      showToast("Selected tickets marked as Closed and moved to Archives");
     } else if (action === "delete") {
-      setLive((prev) => prev.filter((t) => !selected.includes(t.id)));
-      setArchived((prev) => prev.filter((t) => !selected.includes(t.id)));
+      const remainingLive = live.filter((t) => !selected.includes(t.id));
+      const remainingArchived = archived.filter((t) => !selected.includes(t.id));
+      setLive(remainingLive);
+      setArchived(remainingArchived);
+      saveLiveTickets(remainingLive);
+      saveArchivedTickets(remainingArchived);
       setSelected([]);
       showToast("Selected tickets deleted");
     } else if (action === "assign") {
-      setLive((prev) =>
-        prev.map((t) =>
-          selected.includes(t.id) ? { ...t, assigned: "Admin" } : t
-        )
-      );
-      showToast("Selected tickets assigned to Admin");
+      setAssignModalOpen(true);
     }
   };
 
+  const handleConfirmAssign = () => {
+    if (!selectedAdminName) {
+      showToast("Please choose an Admin user");
+      return;
+    }
+
+    const updatedLive = live.map((t) =>
+      selected.includes(t.id) ? { ...t, assigned: selectedAdminName } : t
+    );
+    const updatedArchived = archived.map((t) =>
+      selected.includes(t.id) ? { ...t, assigned: selectedAdminName } : t
+    );
+
+    setLive(updatedLive);
+    setArchived(updatedArchived);
+    saveLiveTickets(updatedLive);
+    saveArchivedTickets(updatedArchived);
+    setAssignModalOpen(false);
+    showToast(`Selected tickets assigned to ${selectedAdminName}`);
+  };
+
+  const handleTicketClick = (ticketId) => {
+    navigate(`/dashboard/support-tickets/${ticketId}`);
+  };
+
   const refresh = () => {
-    setLive(initialLiveTickets);
-    setArchived(initialArchivedTickets);
+    setLive(defaultLiveTickets);
+    setArchived(defaultArchivedTickets);
+    saveLiveTickets(defaultLiveTickets);
+    saveArchivedTickets(defaultArchivedTickets);
     setSearch("");
     setCategory("");
     setSubcategory("");
     setSelected([]);
-    showToast("Tickets refreshed");
+    showToast("Tickets refreshed to default");
   };
 
   return (
-    <div className="min-h-full px-2 py-2 text-[#777] md:px-4 md:py-3">
+    <div className="min-h-full bg-white px-2 py-3 text-[#777] md:px-8 md:py-6">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2 text-sm text-white shadow-lg transition-all">
@@ -332,8 +299,10 @@ const SupportTicket = () => {
         </div>
       )}
 
-      <div className="mb-10 flex items-center justify-between">
-        <h1 className="text-2xl font-normal text-[#999]">Support tickets</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-xl font-normal text-[#999] md:text-2xl">
+          Support tickets
+        </h1>
         <div className="flex gap-2">
           <button
             type="button"
@@ -406,6 +375,7 @@ const SupportTicket = () => {
         onToggle={toggleSelected}
         onToggleAll={toggleAllLive}
         onApplyAction={handleApplyAction}
+        onRowClick={handleTicketClick}
       />
       <TicketTable
         title="Archives"
@@ -414,7 +384,64 @@ const SupportTicket = () => {
         onToggle={toggleSelected}
         onToggleAll={toggleAllArchived}
         onApplyAction={handleApplyAction}
+        onRowClick={handleTicketClick}
       />
+
+      {/* Assign to Admin Modal */}
+      {assignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded bg-white p-5 shadow-xl">
+            <h2 className="mb-2 text-base font-bold text-[#222]">Assign Ticket(s) to Admin</h2>
+            <p className="mb-4 text-xs text-[#666]">
+              Choose an admin user to assign <strong>{selected.length} selected ticket(s)</strong>:
+            </p>
+
+            <div className="max-h-60 space-y-2 overflow-y-auto border border-[#eee] p-2">
+              {adminUsers.map((admin) => (
+                <label
+                  key={admin.id}
+                  className={`flex cursor-pointer items-center justify-between rounded p-2 text-xs transition-colors ${
+                    selectedAdminName === admin.name
+                      ? "bg-[#fff3eb] border border-[#ff823d]"
+                      : "hover:bg-gray-50 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="assignee-admin"
+                      checked={selectedAdminName === admin.name}
+                      onChange={() => setSelectedAdminName(admin.name)}
+                      className="accent-[#ff823d]"
+                    />
+                    <div>
+                      <p className="font-semibold text-[#333]">{admin.name}</p>
+                      <p className="text-[11px] text-[#777]">{admin.role} &bull; {admin.email}</p>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAssignModalOpen(false)}
+                className="rounded border border-[#ccc] px-3 py-1.5 text-xs text-[#666] hover:bg-gray-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAssign}
+                className="rounded bg-[#ff823d] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e06d2c] cursor-pointer"
+              >
+                Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

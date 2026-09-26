@@ -318,8 +318,8 @@ const DataProtection = () => {
   };
 
   return (
-    <main className="data-protection-page min-h-full px-2 py-3 text-sm text-[#777] md:px-5 md:py-4">
-      <h1 className="mb-4 text-base font-normal text-[#999]">
+    <main className="data-protection-page min-h-full bg-white px-2 py-3 text-sm text-[#777] md:px-8 md:py-6">
+      <h1 className="mb-8 text-xl font-normal text-[#999] md:text-2xl">
         Data protection
       </h1>
       <div className="grid gap-4 xl:grid-cols-[1fr_1.08fr]">

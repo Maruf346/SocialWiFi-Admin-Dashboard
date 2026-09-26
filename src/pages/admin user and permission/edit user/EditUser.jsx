@@ -115,7 +115,7 @@ const EditUser = () => {
   };
 
   return (
-    <div className="min-h-full bg-white px-2 py-3 text-[12px] text-[#666] md:px-10 md:py-6">
+    <div className="min-h-full bg-white px-2 py-3 text-[12px] text-[#666] md:px-8 md:py-6">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2 text-sm text-white shadow-lg transition-all">

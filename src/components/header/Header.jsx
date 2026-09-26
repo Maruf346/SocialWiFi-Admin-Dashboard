@@ -33,13 +33,6 @@ const Header = ({ onMenuClick }) => {
         </a>
         <span>/</span>
         <Link
-          to="/forgot-password"
-          className="underline underline-offset-2 hover:text-[#ff823d]"
-        >
-          Change password
-        </Link>
-        <span>/</span>
-        <Link
           to="/"
           className="underline underline-offset-2 hover:text-[#ff823d]"
         >
