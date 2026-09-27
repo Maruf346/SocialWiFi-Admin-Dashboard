@@ -425,6 +425,25 @@ const initialTeamUsers = [
   },
 ];
 
+const parseDateToComparable = (dateStr) => {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+  const mdyMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdyMatch) {
+    const [, m, d, y] = mdyMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  const mdyShortMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (mdyShortMatch) {
+    const [, m, d, y] = mdyShortMatch;
+    return `20${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return str;
+};
+
 const TeamUsers = () => {
   const navigate = useNavigate();
   const [teams, setTeams] = useState(initialTeamUsers);
@@ -450,7 +469,7 @@ const TeamUsers = () => {
     company: "",
     email: "",
     phone: "",
-    password: "••••••••••••",
+    password: "",
     notes: "",
     status: "Active",
     currentPlan: "25 drivers",
@@ -464,7 +483,7 @@ const TeamUsers = () => {
       company: team.company || "",
       email: team.email,
       phone: team.phone || "",
-      password: "••••••••••••",
+      password: team.password || "Mercer2026!*",
       notes: team.notes || "",
       status: team.status,
       currentPlan: team.currentPlan,
@@ -491,9 +510,15 @@ const TeamUsers = () => {
 
       if (!matchSearch) return false;
 
-      // Optional date range filter
-      if (appliedFromDate && team.signUpDate < appliedFromDate) return false;
-      if (appliedToDate && team.signUpDate > appliedToDate) return false;
+      // Accurate date range filter
+      if (appliedFromDate) {
+        const teamDate = parseDateToComparable(team.signUpDate || team.dateSubscr);
+        if (teamDate && teamDate < appliedFromDate) return false;
+      }
+      if (appliedToDate) {
+        const teamDate = parseDateToComparable(team.signUpDate || team.dateSubscr);
+        if (teamDate && teamDate > appliedToDate) return false;
+      }
 
       return true;
     });
@@ -527,6 +552,7 @@ const TeamUsers = () => {
   const handleApplyDateRange = () => {
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
+    setSelectedIds([]);
     showToast("Date filter applied");
   };
 
@@ -545,6 +571,11 @@ const TeamUsers = () => {
   };
 
   const handleDownload = () => {
+    if (selectedIds.length === 0) {
+      showToast("No teams selected to download");
+      return;
+    }
+    const targetTeams = teams.filter((t) => selectedIds.includes(t.id));
     const headers = [
       "Name",
       "Company",
@@ -560,7 +591,7 @@ const TeamUsers = () => {
       "Platform",
       "Locked",
     ];
-    const rows = filteredTeams.map((t) => [
+    const rows = targetTeams.map((t) => [
       `"${t.name}"`,
       `"${t.company}"`,
       `"${t.email}"`,
@@ -585,7 +616,7 @@ const TeamUsers = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("Team list downloaded as CSV");
+    showToast("Selected teams downloaded as CSV");
   };
 
   const handleReset = () => {
@@ -637,6 +668,7 @@ const TeamUsers = () => {
               company: editFormData.company,
               email: editFormData.email,
               phone: editFormData.phone,
+              password: editFormData.password,
               notes: editFormData.notes,
               status: editFormData.status,
               currentPlan: editFormData.currentPlan,
@@ -649,21 +681,18 @@ const TeamUsers = () => {
   };
 
   const handleCancelTeamInfo = () => {
-    if (activeTeam) {
-      setEditFormData({
-        company: activeTeam.company || "",
-        email: activeTeam.email,
-        phone: activeTeam.phone || "",
-        password: "••••••••••••",
-        notes: activeTeam.notes || "",
-        status: activeTeam.status,
-        currentPlan: activeTeam.currentPlan,
-        state: activeTeam.state,
-      });
-      showToast("Changes discarded");
-    } else {
-      setActiveTeamId(null);
-    }
+    setActiveTeamId(null);
+    setEditFormData({
+      company: "",
+      email: "",
+      phone: "",
+      password: "",
+      notes: "",
+      status: "Active",
+      currentPlan: "25 drivers",
+      state: "",
+    });
+    showToast("User info cleared");
   };
 
   return (
@@ -705,8 +734,23 @@ const TeamUsers = () => {
               <div className="relative inline-flex items-center">
                 <input
                   type="date"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setSelectedIds([]);
+                  }}
+                  className="h-6 w-28 rounded border border-[#ccc] bg-white px-1.5 text-xs outline-none"
+                />
+              </div>
+              <span className="text-[#666]">To</span>
+              <div className="relative inline-flex items-center">
+                <input
+                  type="date"
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setSelectedIds([]);
+                  }}
                   className="h-6 w-28 rounded border border-[#ccc] bg-white px-1.5 text-xs outline-none"
                 />
               </div>
@@ -725,12 +769,20 @@ const TeamUsers = () => {
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearch(searchInput.trim());
+                    setSelectedIds([]);
+                  }
+                }}
                 className="h-6 w-32 rounded border border-[#ccc] bg-white px-2 text-xs outline-none md:w-44"
               />
               <button
                 type="button"
-                onClick={() => setSearch(searchInput.trim())}
+                onClick={() => {
+                  setSearch(searchInput.trim());
+                  setSelectedIds([]);
+                }}
                 className="h-6 rounded border border-[#ccc] bg-[#efefef] px-2.5 text-xs font-normal text-[#333] hover:bg-[#e4e4e4] active:bg-[#d5d5d5] cursor-pointer"
               >
                 Go
@@ -754,7 +806,7 @@ const TeamUsers = () => {
                   </th>
                   <th className="px-3 py-1 font-semibold tracking-wider">NAME</th>
                   <th className="px-3 py-1 font-semibold tracking-wider">EMAIL</th>
-                  <th className="px-3 py-1 font-semibold tracking-wider">DATE<br className="sm:hidden" />SUBSCR</th>
+                  <th className="px-3 py-1 font-semibold tracking-wider">DATE<br className="sm:hidden" />SUB'D</th>
                   <th className="w-16 px-2 py-1 text-center font-semibold tracking-wider">EDIT/<br className="sm:hidden" />VIEW</th>
                 </tr>
               </thead>
@@ -769,6 +821,7 @@ const TeamUsers = () => {
                   filteredTeams.map((team) => {
                     const isSelected = selectedIds.includes(team.id);
                     const isActive = activeTeamId === team.id;
+                    const isLocked = team.locked === "Yes";
                     return (
                       <tr
                         key={team.id}
@@ -790,7 +843,11 @@ const TeamUsers = () => {
                             aria-label={`Select ${team.name}`}
                           />
                         </td>
-                        <td className="px-3 py-1 font-normal text-[#444] whitespace-nowrap">
+                        <td
+                          className={`px-3 py-1 whitespace-nowrap ${
+                            isLocked ? "font-bold text-red-600" : "font-normal text-[#444]"
+                          }`}
+                        >
                           {team.name}
                         </td>
                         <td className="px-3 py-1 text-[#666] whitespace-nowrap">
@@ -1038,7 +1095,7 @@ const TeamUsers = () => {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, notes: e.target.value })
                     }
-                    placeholder="Text field box where we can type in info about this user such as notes from tech support, etc."
+                    placeholder=""
                     className="w-full rounded-sm border border-[#ccc] p-2 text-xs text-[#444] outline-none focus:border-[#ff823d] placeholder:text-[#aaa] resize-y"
                   />
                 </div>
@@ -1066,7 +1123,12 @@ const TeamUsers = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => {
+                const targetEmail = activeTeam
+                  ? activeTeam.email
+                  : teams[0]?.email || "ethanmercer@mercerfreight.com";
+                navigate(`/dashboard/team-manager/${encodeURIComponent(targetEmail)}`);
+              }}
               className="rounded bg-[#151d56] px-5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#0e143d] cursor-pointer"
             >
               DASHBOARD

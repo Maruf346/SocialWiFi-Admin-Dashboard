@@ -28,6 +28,7 @@ import StaffResource from "../pages/support tools/staff resource/StaffResource";
 import RevenueMetrics from "../pages/reporting and analytics/RevenueMetrics";
 // USER ACCOUNT MANAGEMENT
 import TeamUsers from "../pages/user account manage/team user/TeamUsers";
+import TeamManagerDashboard from "../pages/user account manage/team user/TeamManagerDashboard";
 import TeamUserRouteHistory from "../pages/user account manage/team user/TeamUserRouteHistory";
 import SingleUser from "../pages/user account manage/single user/SingleUser";
 import SingleUserRouteHistory from "../pages/user account manage/single user/SingleUserRouteHistory";
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
         {path: "staff-resources", element: <StaffResource />},
         {path: "revenue-metrics", element: <RevenueMetrics />},
         {path: "team-users", element: <TeamUsers />},
+        {path: "team-manager/:userEmail", element: <TeamManagerDashboard />},
         {path: "team-route-history/:userEmail", element: <TeamUserRouteHistory />},
         {path: "single-user", element: <SingleUser />},
         {path: "single-route-history/:userEmail", element: <SingleUserRouteHistory />},

@@ -32,6 +32,8 @@ const DashboardLayout = () => {
     ? ['Home', 'Support Tools', 'SUPPORT TICKETS', 'TICKET DETAILS']
     : location.pathname.startsWith('/dashboard/single-route-history/')
     ? ['Home', 'User Account Management', 'MANAGE SINGLE USERS', 'ROUTE HISTORY']
+    : location.pathname.startsWith('/dashboard/team-manager/')
+    ? ['Home', 'User Account Management', 'MANAGE TEAMS', 'TEAM MANAGER DASHBOARD']
     : location.pathname.startsWith('/dashboard/team-route-history/')
     ? ['Home', 'User Account Management', 'MANAGE TEAMS', 'ROUTE HISTORY']
     : location.pathname.startsWith('/dashboard/fleet-route-history/')
