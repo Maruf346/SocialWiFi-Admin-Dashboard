@@ -469,12 +469,35 @@ const TeamUsers = () => {
     company: "",
     email: "",
     phone: "",
-    password: "",
+    newPassword: "",
     notes: "",
     status: "Active",
     currentPlan: "25 drivers",
     state: "",
   });
+
+  const generateStrongPassword = () => {
+    const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lowercase = "abcdefghijkmnpqrstuvwxyz";
+    const numbers = "23456789";
+    const symbols = "!@#$%^&*";
+    const all = uppercase + lowercase + numbers + symbols;
+
+    let pwd = "";
+    pwd += uppercase[Math.floor(Math.random() * uppercase.length)];
+    pwd += lowercase[Math.floor(Math.random() * lowercase.length)];
+    pwd += numbers[Math.floor(Math.random() * numbers.length)];
+    pwd += symbols[Math.floor(Math.random() * symbols.length)];
+
+    for (let i = 4; i < 14; i++) {
+      pwd += all[Math.floor(Math.random() * all.length)];
+    }
+
+    const shuffled = pwd.split("").sort(() => 0.5 - Math.random()).join("");
+    setEditFormData((prev) => ({ ...prev, newPassword: shuffled }));
+    setShowPassword(true);
+    showToast("Strong password generated");
+  };
 
   // Keep form data synced when active team changes
   const handleSelectTeam = (team) => {
@@ -483,12 +506,13 @@ const TeamUsers = () => {
       company: team.company || "",
       email: team.email,
       phone: team.phone || "",
-      password: team.password || "Mercer2026!*",
+      newPassword: "",
       notes: team.notes || "",
       status: team.status,
       currentPlan: team.currentPlan,
       state: team.state,
     });
+    setShowPassword(false);
     // Add to selected checkbox if not present
     if (!selectedIds.includes(team.id)) {
       setSelectedIds([team.id]);
@@ -668,7 +692,7 @@ const TeamUsers = () => {
               company: editFormData.company,
               email: editFormData.email,
               phone: editFormData.phone,
-              password: editFormData.password,
+              ...(editFormData.newPassword ? { password: editFormData.newPassword } : {}),
               notes: editFormData.notes,
               status: editFormData.status,
               currentPlan: editFormData.currentPlan,
@@ -677,6 +701,7 @@ const TeamUsers = () => {
           : t
       )
     );
+    setEditFormData((prev) => ({ ...prev, newPassword: "" }));
     showToast("Team information saved successfully");
   };
 
@@ -686,12 +711,13 @@ const TeamUsers = () => {
       company: "",
       email: "",
       phone: "",
-      password: "",
+      newPassword: "",
       notes: "",
       status: "Active",
       currentPlan: "25 drivers",
       state: "",
     });
+    setShowPassword(false);
     showToast("User info cleared");
   };
 
@@ -1011,7 +1037,8 @@ const TeamUsers = () => {
                   />
                 </div>
 
-                {/* Password field with toggle */}
+                {/* Commented out previous password display field - Existing passwords are not displayed or retrieved for security */}
+                {/*
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                   <label className="w-28 font-bold text-[#333]">Password:</label>
                   <div className="relative flex-1">
@@ -1030,6 +1057,42 @@ const TeamUsers = () => {
                       aria-label="Toggle password visibility"
                     >
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+                */}
+
+                {/* Reset / Change Password field */}
+                <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <label className="w-28 font-bold text-[#333]">Reset Password:</label>
+                    <div className="relative flex-1">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={editFormData.newPassword || ""}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, newPassword: e.target.value })
+                        }
+                        placeholder="Enter new password to reset"
+                        className="h-7 w-full rounded-sm border border-[#ccc] px-2 pr-7 text-xs text-[#444] outline-none focus:border-[#ff823d] placeholder:text-[#aaa]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                        aria-label="Toggle password visibility"
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-end sm:pl-28">
+                    <button
+                      type="button"
+                      onClick={generateStrongPassword}
+                      className="text-[11px] font-medium text-[#0066cc] underline hover:text-[#004999] cursor-pointer"
+                    >
+                      Generate strong password
                     </button>
                   </div>
                 </div>

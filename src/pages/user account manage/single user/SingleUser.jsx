@@ -366,24 +366,48 @@ const SingleUser = () => {
   // Form state for editable fields in USER INFO panel
   const [editFormData, setEditFormData] = useState({
     email: "",
-    password: "••••••••••••",
+    newPassword: "",
     notes: "",
     status: "Active",
     plan: "Monthly",
     state: "",
   });
 
+  const generateStrongPassword = () => {
+    const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lowercase = "abcdefghijkmnpqrstuvwxyz";
+    const numbers = "23456789";
+    const symbols = "!@#$%^&*";
+    const all = uppercase + lowercase + numbers + symbols;
+
+    let pwd = "";
+    pwd += uppercase[Math.floor(Math.random() * uppercase.length)];
+    pwd += lowercase[Math.floor(Math.random() * lowercase.length)];
+    pwd += numbers[Math.floor(Math.random() * numbers.length)];
+    pwd += symbols[Math.floor(Math.random() * symbols.length)];
+
+    for (let i = 4; i < 14; i++) {
+      pwd += all[Math.floor(Math.random() * all.length)];
+    }
+
+    const shuffled = pwd.split("").sort(() => 0.5 - Math.random()).join("");
+    setEditFormData((prev) => ({ ...prev, newPassword: shuffled }));
+    setShowPassword(true);
+    showToast("Strong password generated");
+  };
+
   // Keep form data synced when active user changes
   const handleSelectUser = (user) => {
     setActiveUserId(user.id);
     setEditFormData({
       email: user.email,
-      password: "••••••••••••",
+      newPassword: "",
       notes: user.notes || "",
       status: user.status,
       plan: user.plan,
       state: user.state,
     });
+    setShowPassword(false);
     // Add to selected checkbox if not present
     if (!selectedIds.includes(user.id)) {
       setSelectedIds([user.id]);
@@ -542,6 +566,7 @@ const SingleUser = () => {
           ? {
               ...u,
               email: editFormData.email,
+              ...(editFormData.newPassword ? { password: editFormData.newPassword } : {}),
               notes: editFormData.notes,
               status: editFormData.status,
               plan: editFormData.plan,
@@ -550,6 +575,7 @@ const SingleUser = () => {
           : u
       )
     );
+    setEditFormData((prev) => ({ ...prev, newPassword: "" }));
     showToast("User information saved successfully");
   };
 
@@ -557,12 +583,13 @@ const SingleUser = () => {
     if (activeUser) {
       setEditFormData({
         email: activeUser.email,
-        password: "••••••••••••",
+        newPassword: "",
         notes: activeUser.notes || "",
         status: activeUser.status,
         plan: activeUser.plan,
         state: activeUser.state,
       });
+      setShowPassword(false);
       showToast("Changes discarded");
     } else {
       setActiveUserId(null);
@@ -862,7 +889,8 @@ const SingleUser = () => {
                   />
                 </div>
 
-                {/* Password field with toggle */}
+                {/* Commented out previous password display field - Existing passwords are not displayed or retrieved for security */}
+                {/*
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                   <label className="w-28 font-bold text-[#333]">Password:</label>
                   <div className="relative flex-1">
@@ -881,6 +909,42 @@ const SingleUser = () => {
                       aria-label="Toggle password visibility"
                     >
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+                */}
+
+                {/* Reset / Change Password field */}
+                <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <label className="w-28 font-bold text-[#333]">Reset Password:</label>
+                    <div className="relative flex-1">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={editFormData.newPassword || ""}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, newPassword: e.target.value })
+                        }
+                        placeholder="Enter new password to reset"
+                        className="h-7 w-full rounded-sm border border-[#ccc] px-2 pr-7 text-xs text-[#444] outline-none focus:border-[#ff823d] placeholder:text-[#aaa]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                        aria-label="Toggle password visibility"
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-end sm:pl-28">
+                    <button
+                      type="button"
+                      onClick={generateStrongPassword}
+                      className="text-[11px] font-medium text-[#0066cc] underline hover:text-[#004999] cursor-pointer"
+                    >
+                      Generate strong password
                     </button>
                   </div>
                 </div>
