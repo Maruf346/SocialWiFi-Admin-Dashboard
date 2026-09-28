@@ -906,7 +906,7 @@ GitHub:
 - `BUILD_DIR` variable added
 - `.github/workflows/deploy-admin-dashboard.yml` added
 
-App:
+App: 
 
 - production API URL configured 
 - build command works
