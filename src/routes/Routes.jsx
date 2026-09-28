@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import AuthLayout from "../layout/AuthLayout";
 import ErrorPage from "../pages/ErrorPage";
+import RequireAuth from "../components/auth/RequireAuth";
 // authentication 
 import Login from "../pages/auth/Login";
 import Mfa from "../pages/auth/Mfa";
@@ -55,7 +56,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <DashboardLayout />,
+    element: (
+      <RequireAuth>
+        <DashboardLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Dashboard /> },
       {path: "admin-user-list", element: <AdminUserList />},

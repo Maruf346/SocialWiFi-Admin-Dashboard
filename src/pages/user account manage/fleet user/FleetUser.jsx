@@ -704,6 +704,9 @@ const FleetUser = () => {
 
       {/* Header Info */}
       <div className="mb-4">
+        <div className="mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          Mock data notice: Fleet user records are currently placeholder data. Live fleet API integration is intentionally paused until backend fleet logic is ready.
+        </div>
         <h1 className="mb-2 text-xl font-normal text-[#999] md:text-2xl">Manage fleets</h1>
         <div className="space-y-0.5 font-bold text-[#222]">
           <p>Total: {totalCount}</p>
@@ -1155,3 +1158,4 @@ const FleetUser = () => {
 };
 
 export default FleetUser;
+

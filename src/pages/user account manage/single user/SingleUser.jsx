@@ -1,6 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { History, Pencil, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router";
+import { subscribersApi } from "../../../api/subscribersApi";
+
+const PAGE_SIZE = 10;
 
 const initialSingleUsers = [
   {
@@ -347,7 +350,7 @@ const initialSingleUsers = [
 
 const SingleUser = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState(initialSingleUsers);
+  const [users, setUsers] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]); // No user preselected on land
   const [activeUserId, setActiveUserId] = useState(null); // No user preselected on land
   const [filterInput, setFilterInput] = useState("All");
@@ -357,6 +360,10 @@ const SingleUser = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [apiTotalCount, setApiTotalCount] = useState(0);
 
   // Get active user object
   const activeUser = useMemo(() => {
@@ -419,6 +426,28 @@ const SingleUser = () => {
     setTimeout(() => setToastMessage(""), 2500);
   };
 
+  const loadUsers = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const response = await subscribersApi.listSingle({ search });
+      setUsers(response.items);
+      setApiTotalCount(response.count);
+      setSelectedIds([]);
+      setActiveUserId(null);
+      setCurrentPage(1);
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to load single users.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadUsers();
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter & Search logic
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -439,20 +468,24 @@ const SingleUser = () => {
   }, [users, search, filter]);
 
   // Total metrics
-  const totalCount = 438;
-  const totalMonthlyCount = 245;
-  const totalYearlyCount = 193;
+  const totalCount = apiTotalCount || filteredUsers.length;
+  const totalMonthlyCount = users.filter((user) => user.plan === "Monthly").length;
+  const totalYearlyCount = users.filter((user) => user.plan === "Yearly").length;
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
+  const pagedUsers = filteredUsers.slice(pageStart, pageStart + PAGE_SIZE);
 
   const isAllVisibleSelected =
-    filteredUsers.length > 0 &&
-    filteredUsers.every((u) => selectedIds.includes(u.id));
+    pagedUsers.length > 0 &&
+    pagedUsers.every((u) => selectedIds.includes(u.id));
 
   const handleToggleSelectAll = (checked) => {
     if (checked) {
-      const allVisibleIds = filteredUsers.map((u) => u.id);
+      const allVisibleIds = pagedUsers.map((u) => u.id);
       setSelectedIds(Array.from(new Set([...selectedIds, ...allVisibleIds])));
     } else {
-      const visibleIdSet = new Set(filteredUsers.map((u) => u.id));
+      const visibleIdSet = new Set(pagedUsers.map((u) => u.id));
       setSelectedIds(selectedIds.filter((id) => !visibleIdSet.has(id)));
     }
   };
@@ -466,16 +499,7 @@ const SingleUser = () => {
 
   // Bottom action buttons
   const handleRemove = () => {
-    if (selectedIds.length === 0) {
-      showToast("No users selected to remove");
-      return;
-    }
-    setUsers((prev) => prev.filter((u) => !selectedIds.includes(u.id)));
-    if (selectedIds.includes(activeUserId)) {
-      setActiveUserId(null);
-    }
-    setSelectedIds([]);
-    showToast("Selected users removed successfully");
+    showToast("Remove is not available yet: the backend schema has no delete endpoint for single subscribers.");
   };
 
   const handleDownload = () => {
@@ -531,52 +555,65 @@ const SingleUser = () => {
     showToast("Filters and selection reset");
   };
 
-  const handleLock = () => {
+  const handleLock = async () => {
     if (selectedIds.length === 0) {
       showToast("No users selected to lock");
       return;
     }
-    setUsers((prev) =>
-      prev.map((u) => (selectedIds.includes(u.id) ? { ...u, locked: "Yes" } : u))
-    );
-    showToast("Selected users locked");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      await Promise.all(selectedIds.map((id) => subscribersApi.lockSingle(id)));
+      showToast("Selected users locked");
+      await loadUsers();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to lock selected users.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     if (selectedIds.length === 0) {
       showToast("No users selected to unlock");
       return;
     }
-    setUsers((prev) =>
-      prev.map((u) => (selectedIds.includes(u.id) ? { ...u, locked: "No" } : u))
-    );
-    showToast("Selected users unlocked");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      await Promise.all(selectedIds.map((id) => subscribersApi.unlockSingle(id)));
+      showToast("Selected users unlocked");
+      await loadUsers();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to unlock selected users.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Side Panel Save & Cancel
-  const handleSaveUserInfo = (e) => {
+  const handleSaveUserInfo = async (e) => {
     e.preventDefault();
     if (!activeUser) {
       showToast("Please select a user first");
       return;
     }
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === activeUser.id
-          ? {
-              ...u,
-              email: editFormData.email,
-              ...(editFormData.newPassword ? { password: editFormData.newPassword } : {}),
-              notes: editFormData.notes,
-              status: editFormData.status,
-              plan: editFormData.plan,
-              state: editFormData.state,
-            }
-          : u
-      )
-    );
-    setEditFormData((prev) => ({ ...prev, newPassword: "" }));
-    showToast("User information saved successfully");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      const updatedUser = await subscribersApi.updateSingle(activeUser.id, {
+        email: editFormData.email,
+        password: editFormData.newPassword,
+        status: editFormData.status,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === activeUser.id ? updatedUser : u)));
+      setEditFormData((prev) => ({ ...prev, newPassword: "" }));
+      showToast("User information saved successfully");
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to save user information.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelUserInfo = () => {
@@ -602,6 +639,12 @@ const SingleUser = () => {
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2.5 text-sm text-white shadow-lg transition-all">
           {toastMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {errorMessage}
         </div>
       )}
 
@@ -701,14 +744,20 @@ const SingleUser = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[#888]">
+                      Loading single users...
+                    </td>
+                  </tr>
+                ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-[#888]">
                       No single users found matching criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user) => {
+                  pagedUsers.map((user) => {
                     const isSelected = selectedIds.includes(user.id);
                     const isActive = activeUserId === user.id;
                     const isLocked = user.locked === "Yes";
@@ -782,38 +831,40 @@ const SingleUser = () => {
 
           {/* Table Bottom Meta & Pagination */}
           <div className="flex flex-wrap items-center justify-between border-b border-[#eee] py-2 text-xs text-[#777]">
-            <span>{selectedIds.length} of {totalCount} selected</span>
-            <span>1-{filteredUsers.length} of {totalCount} users</span>
+            <span>{selectedIds.length} of {filteredUsers.length} selected</span>
+            <span>{filteredUsers.length ? pageStart + 1 : 0}-{Math.min(pageStart + pagedUsers.length, filteredUsers.length)} of {totalCount} users</span>
             <div className="flex items-center gap-1.5 underline cursor-pointer">
               <button
                 type="button"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                className="hover:text-black cursor-pointer"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                className="hover:text-black disabled:cursor-not-allowed disabled:text-[#bbb] cursor-pointer"
               >
                 Previous
               </button>
               <span
                 onClick={() => setCurrentPage(1)}
-                className={`px-0.5 cursor-pointer ${currentPage === 1 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 1 ? "font-bold text-black" : ""}`}
               >
                 1
               </span>
               <span
                 onClick={() => setCurrentPage(2)}
-                className={`px-0.5 cursor-pointer ${currentPage === 2 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 2 ? "font-bold text-black" : ""}`}
               >
                 2
               </span>
               <span
                 onClick={() => setCurrentPage(3)}
-                className={`px-0.5 cursor-pointer ${currentPage === 3 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 3 ? "font-bold text-black" : ""}`}
               >
                 3
               </span>
               <button
                 type="button"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="hover:text-black cursor-pointer"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                className="hover:text-black disabled:cursor-not-allowed disabled:text-[#bbb] cursor-pointer"
               >
                 Next
               </button>
@@ -847,6 +898,7 @@ const SingleUser = () => {
               <button
                 type="button"
                 onClick={handleLock}
+                disabled={isSaving}
                 className="rounded bg-[#cc0000] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#a60000] cursor-pointer"
               >
                 LOCK
@@ -854,6 +906,7 @@ const SingleUser = () => {
               <button
                 type="button"
                 onClick={handleUnlock}
+                disabled={isSaving}
                 className="rounded bg-[#cc0000] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#a60000] cursor-pointer"
               >
                 UNLOCK
@@ -1022,7 +1075,7 @@ const SingleUser = () => {
             <button
               type="submit"
               form="userInfoForm"
-              disabled={!activeUser}
+              disabled={!activeUser || isSaving}
               className={`rounded px-5 py-1.5 text-xs font-semibold text-white transition-colors ${
                 activeUser
                   ? "bg-[#ff823d] hover:bg-[#e56f2d] cursor-pointer"
@@ -1034,7 +1087,7 @@ const SingleUser = () => {
             <button
               type="button"
               onClick={handleCancelUserInfo}
-              disabled={!activeUser}
+              disabled={!activeUser || isSaving}
               className={`rounded px-5 py-1.5 text-xs font-semibold text-white transition-colors ${
                 activeUser
                   ? "bg-[#151d56] hover:bg-[#0e143d] cursor-pointer"
@@ -1051,3 +1104,5 @@ const SingleUser = () => {
 };
 
 export default SingleUser;
+
+

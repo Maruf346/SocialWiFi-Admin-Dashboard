@@ -1,6 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router";
+import { subscribersApi } from "../../../api/subscribersApi";
+
+const PAGE_SIZE = 10;
 
 const initialTeamUsers = [
   {
@@ -446,7 +449,7 @@ const parseDateToComparable = (dateStr) => {
 
 const TeamUsers = () => {
   const navigate = useNavigate();
-  const [teams, setTeams] = useState(initialTeamUsers);
+  const [teams, setTeams] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]); // No team preselected on land
   const [activeTeamId, setActiveTeamId] = useState(null); // No team preselected on land
   const [fromDate, setFromDate] = useState("");
@@ -458,6 +461,10 @@ const TeamUsers = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [apiTotalCount, setApiTotalCount] = useState(0);
 
   // Get active team object
   const activeTeam = useMemo(() => {
@@ -524,6 +531,28 @@ const TeamUsers = () => {
     setTimeout(() => setToastMessage(""), 2500);
   };
 
+  const loadTeams = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const response = await subscribersApi.listTeams({ search });
+      setTeams(response.items);
+      setApiTotalCount(response.count);
+      setSelectedIds([]);
+      setActiveTeamId(null);
+      setCurrentPage(1);
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to load team users.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadTeams();
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter & Search logic
   const filteredTeams = useMemo(() => {
     return teams.filter((team) => {
@@ -549,19 +578,23 @@ const TeamUsers = () => {
   }, [teams, search, appliedFromDate, appliedToDate]);
 
   // Total metrics
-  const totalCount = 79;
-  const totalDriversCount = 412;
+  const totalCount = apiTotalCount || filteredTeams.length;
+  const totalDriversCount = teams.reduce((sum, team) => sum + Number(team.activeDrivers || 0), 0);
+  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
+  const pagedTeams = filteredTeams.slice(pageStart, pageStart + PAGE_SIZE);
 
   const isAllVisibleSelected =
-    filteredTeams.length > 0 &&
-    filteredTeams.every((t) => selectedIds.includes(t.id));
+    pagedTeams.length > 0 &&
+    pagedTeams.every((t) => selectedIds.includes(t.id));
 
   const handleToggleSelectAll = (checked) => {
     if (checked) {
-      const allVisibleIds = filteredTeams.map((t) => t.id);
+      const allVisibleIds = pagedTeams.map((t) => t.id);
       setSelectedIds(Array.from(new Set([...selectedIds, ...allVisibleIds])));
     } else {
-      const visibleIdSet = new Set(filteredTeams.map((t) => t.id));
+      const visibleIdSet = new Set(pagedTeams.map((t) => t.id));
       setSelectedIds(selectedIds.filter((id) => !visibleIdSet.has(id)));
     }
   };
@@ -581,17 +614,22 @@ const TeamUsers = () => {
   };
 
   // Bottom action buttons
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedIds.length === 0) {
       showToast("No teams selected to delete");
       return;
     }
-    setTeams((prev) => prev.filter((t) => !selectedIds.includes(t.id)));
-    if (selectedIds.includes(activeTeamId)) {
-      setActiveTeamId(null);
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      await Promise.all(selectedIds.map((id) => subscribersApi.deleteTeam(id)));
+      showToast("Selected teams deleted successfully");
+      await loadTeams();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to delete selected teams.");
+    } finally {
+      setIsSaving(false);
     }
-    setSelectedIds([]);
-    showToast("Selected teams deleted successfully");
   };
 
   const handleDownload = () => {
@@ -655,54 +693,65 @@ const TeamUsers = () => {
     showToast("Filters and selection reset");
   };
 
-  const handleLock = () => {
+  const handleLock = async () => {
     if (selectedIds.length === 0) {
       showToast("No teams selected to lock");
       return;
     }
-    setTeams((prev) =>
-      prev.map((t) => (selectedIds.includes(t.id) ? { ...t, locked: "Yes" } : t))
-    );
-    showToast("Selected teams locked");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      await Promise.all(selectedIds.map((id) => subscribersApi.lockTeam(id)));
+      showToast("Selected teams locked");
+      await loadTeams();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to lock selected teams.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     if (selectedIds.length === 0) {
       showToast("No teams selected to unlock");
       return;
     }
-    setTeams((prev) =>
-      prev.map((t) => (selectedIds.includes(t.id) ? { ...t, locked: "No" } : t))
-    );
-    showToast("Selected teams unlocked");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      await Promise.all(selectedIds.map((id) => subscribersApi.unlockTeam(id)));
+      showToast("Selected teams unlocked");
+      await loadTeams();
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to unlock selected teams.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Side Panel Save & Cancel
-  const handleSaveTeamInfo = (e) => {
+  const handleSaveTeamInfo = async (e) => {
     e.preventDefault();
     if (!activeTeam) {
       showToast("Please select a team first");
       return;
     }
-    setTeams((prev) =>
-      prev.map((t) =>
-        t.id === activeTeam.id
-          ? {
-              ...t,
-              company: editFormData.company,
-              email: editFormData.email,
-              phone: editFormData.phone,
-              ...(editFormData.newPassword ? { password: editFormData.newPassword } : {}),
-              notes: editFormData.notes,
-              status: editFormData.status,
-              currentPlan: editFormData.currentPlan,
-              state: editFormData.state,
-            }
-          : t
-      )
-    );
-    setEditFormData((prev) => ({ ...prev, newPassword: "" }));
-    showToast("Team information saved successfully");
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      const updatedTeam = await subscribersApi.updateTeam(activeTeam.id, {
+        email: editFormData.email,
+        password: editFormData.newPassword,
+        status: editFormData.status,
+      });
+      setTeams((prev) => prev.map((team) => (team.id === activeTeam.id ? updatedTeam : team)));
+      setEditFormData((prev) => ({ ...prev, newPassword: "" }));
+      showToast("Team information saved successfully");
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to save team information.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelTeamInfo = () => {
@@ -727,6 +776,12 @@ const TeamUsers = () => {
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2.5 text-sm text-white shadow-lg transition-all">
           {toastMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {errorMessage}
         </div>
       )}
 
@@ -837,14 +892,20 @@ const TeamUsers = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTeams.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-[#888]">
+                      Loading team users...
+                    </td>
+                  </tr>
+                ) : filteredTeams.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-[#888]">
                       No teams found matching criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredTeams.map((team) => {
+                  pagedTeams.map((team) => {
                     const isSelected = selectedIds.includes(team.id);
                     const isActive = activeTeamId === team.id;
                     const isLocked = team.locked === "Yes";
@@ -902,38 +963,40 @@ const TeamUsers = () => {
 
           {/* Table Bottom Meta & Pagination */}
           <div className="flex flex-wrap items-center justify-between border-b border-[#eee] py-2 text-xs text-[#777]">
-            <span>{selectedIds.length} of {totalCount} selected</span>
-            <span>1-{filteredTeams.length} of {totalCount} users</span>
+            <span>{selectedIds.length} of {filteredTeams.length} selected</span>
+            <span>{filteredTeams.length ? pageStart + 1 : 0}-{Math.min(pageStart + pagedTeams.length, filteredTeams.length)} of {totalCount} users</span>
             <div className="flex items-center gap-1.5 underline cursor-pointer">
               <button
                 type="button"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                className="hover:text-black cursor-pointer"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                className="hover:text-black disabled:cursor-not-allowed disabled:text-[#bbb] cursor-pointer"
               >
                 Previous
               </button>
               <span
                 onClick={() => setCurrentPage(1)}
-                className={`px-0.5 cursor-pointer ${currentPage === 1 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 1 ? "font-bold text-black" : ""}`}
               >
                 1
               </span>
               <span
                 onClick={() => setCurrentPage(2)}
-                className={`px-0.5 cursor-pointer ${currentPage === 2 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 2 ? "font-bold text-black" : ""}`}
               >
                 2
               </span>
               <span
                 onClick={() => setCurrentPage(3)}
-                className={`px-0.5 cursor-pointer ${currentPage === 3 ? "font-bold text-black" : ""}`}
+                className={`px-0.5 cursor-pointer ${safeCurrentPage === 3 ? "font-bold text-black" : ""}`}
               >
                 3
               </span>
               <button
                 type="button"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="hover:text-black cursor-pointer"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                className="hover:text-black disabled:cursor-not-allowed disabled:text-[#bbb] cursor-pointer"
               >
                 Next
               </button>
@@ -945,6 +1008,7 @@ const TeamUsers = () => {
             <button
               type="button"
               onClick={handleDelete}
+              disabled={isSaving}
               className="rounded bg-[#ff823d] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e56f2d] cursor-pointer"
             >
               DELETE
@@ -967,6 +1031,7 @@ const TeamUsers = () => {
               <button
                 type="button"
                 onClick={handleLock}
+                disabled={isSaving}
                 className="rounded bg-[#cc0000] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#a60000] cursor-pointer"
               >
                 LOCK
@@ -974,6 +1039,7 @@ const TeamUsers = () => {
               <button
                 type="button"
                 onClick={handleUnlock}
+                disabled={isSaving}
                 className="rounded bg-[#cc0000] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#a60000] cursor-pointer"
               >
                 UNLOCK
@@ -1175,7 +1241,7 @@ const TeamUsers = () => {
             <button
               type="submit"
               form="teamInfoForm"
-              disabled={!activeTeam}
+              disabled={!activeTeam || isSaving}
               className={`rounded px-5 py-1.5 text-xs font-semibold text-white transition-colors ${
                 activeTeam
                   ? "bg-[#ff823d] hover:bg-[#e56f2d] cursor-pointer"
@@ -1199,7 +1265,7 @@ const TeamUsers = () => {
             <button
               type="button"
               onClick={handleCancelTeamInfo}
-              disabled={!activeTeam}
+              disabled={!activeTeam || isSaving}
               className={`rounded px-5 py-1.5 text-xs font-semibold text-white transition-colors ${
                 activeTeam
                   ? "bg-[#151d56] hover:bg-[#0e143d] cursor-pointer"
@@ -1216,3 +1282,5 @@ const TeamUsers = () => {
 };
 
 export default TeamUsers;
+
+

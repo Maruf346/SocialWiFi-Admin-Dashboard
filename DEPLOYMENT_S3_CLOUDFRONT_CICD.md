@@ -714,7 +714,7 @@ repo:Maruf346@117565778/SocialWiFi-Admin-Dashboard@1361011002:ref:refs/heads/mai
 ```
 
 After the deployment role works, remove the debug step from the workflow. It does not expose AWS credentials, but there is no need to keep printing token claims permanently.
-## 15. Add Lint Or Tests If Available
+## 14. Add Lint Or Tests If Available
 
 If your project has linting, add this before build:
 
@@ -949,7 +949,6 @@ App:
 - build command works
 - routing works after refresh
 - CloudFront cache invalidates after deploy
-
 
 
 

@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import {
-  saveAdminUser,
-  permissionGroups,
-} from "../../../utils/adminUsersStorage";
+import { permissionGroups } from "../../../utils/adminUsersStorage";
+import { adminUsersApi } from "../../../api/adminUsersApi";
 
 const AddUser = () => {
   const navigate = useNavigate();
@@ -18,6 +16,8 @@ const AddUser = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [toastMessage, setToastMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -71,27 +71,31 @@ const AddUser = () => {
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.email.trim()) {
-      showToast("Please enter at least Name and Email");
+    setErrorMessage("");
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password.trim()) {
+      showToast("Please enter Name, Email, and Password");
       return;
     }
 
-    const newId = `USR-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newAdmin = {
-      id: newId,
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      password: formData.password.trim(),
-      phone: formData.phone.trim() || "N/A",
-      role: formData.role.trim() || "Staff",
-      status: "Allowed",
-      permissions: selectedPermissions,
-    };
-
-    saveAdminUser(newAdmin);
-    navigate("/dashboard/admin-user-list");
+    setIsSubmitting(true);
+    try {
+      await adminUsersApi.create({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password.trim(),
+        phone: formData.phone.trim(),
+        isSuperadmin: formData.role.toLowerCase().includes("super"),
+        permissions: selectedPermissions,
+      });
+      navigate("/dashboard/admin-user-list");
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to create admin user.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -106,6 +110,12 @@ const AddUser = () => {
       <h1 className="mx-auto mb-8 max-w-5xl text-xl font-normal text-[#999] md:text-2xl">
         Add admin user
       </h1>
+
+      {errorMessage && (
+        <div className="mx-auto mb-4 max-w-5xl rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       <form className="mx-auto max-w-5xl" onSubmit={handleSubmit}>
         <div className="space-y-2">
@@ -259,9 +269,10 @@ const AddUser = () => {
         <div className="mt-6 flex gap-2 rounded-lg border border-[#e5e5e5] bg-[#fafafa] p-3">
           <button
             type="submit"
-            className="rounded bg-[#1d2464] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#151a4a] cursor-pointer"
+            disabled={isSubmitting}
+            className="rounded bg-[#1d2464] px-5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#151a4a] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
-            ADD
+            {isSubmitting ? "ADDING..." : "ADD"}
           </button>
           <button
             type="button"
@@ -277,3 +288,4 @@ const AddUser = () => {
 };
 
 export default AddUser;
+

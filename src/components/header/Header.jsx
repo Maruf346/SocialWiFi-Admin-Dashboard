@@ -1,8 +1,19 @@
 import { Menu } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Icons } from "../../assets/Images";
+import { authApi } from "../../api/authApi";
+import { authStorage } from "../../utils/authStorage";
 
 const Header = ({ onMenuClick }) => {
+  const navigate = useNavigate();
+  const user = authStorage.getUser();
+
+  const handleLogout = async (event) => {
+    event.preventDefault();
+    await authApi.logout();
+    navigate("/", { replace: true });
+  };
+
   return (
     <div className="flex h-full w-full items-center justify-between bg-gradient-to-b from-[#1B235E] to-[#190F0C] px-4 md:px-8">
       <div className="flex items-center gap-3">
@@ -22,7 +33,7 @@ const Header = ({ onMenuClick }) => {
       </div>
 
       <nav className="hidden items-center gap-2 text-xs uppercase text-white md:flex lg:text-sm">
-        <span>Welcome, admin@gmail.com.</span>
+        <span>Welcome, {user?.email || "admin"}.</span>
         <a
           href="https://getrightroute.app"
           target="_blank"
@@ -34,6 +45,7 @@ const Header = ({ onMenuClick }) => {
         <span>/</span>
         <Link
           to="/"
+          onClick={handleLogout}
           className="underline underline-offset-2 hover:text-[#ff823d]"
         >
           Log out
