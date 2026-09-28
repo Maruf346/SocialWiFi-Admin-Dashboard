@@ -498,11 +498,13 @@ Replace:
 <GITHUB_REPO>
 ```
 
-Example repo format:
+For this repository, GitHub is using an ID-based OIDC `sub` claim. The actual value seen in GitHub Actions is:
 
 ```text
-maruf/SocialWiFi-Admin-Dashboard
+repo:Maruf346@117565778/SocialWiFi-Admin-Dashboard@1361011002:ref:refs/heads/main
 ```
+
+Use that exact value in the trust policy.
 
 Trust policy:
 
@@ -521,7 +523,7 @@ Trust policy:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:<GITHUB_OWNER>/<GITHUB_REPO>:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": "repo:Maruf346@117565778/SocialWiFi-Admin-Dashboard@1361011002:ref:refs/heads/main"
         }
       }
     }
@@ -529,7 +531,7 @@ Trust policy:
 }
 ```
 
-This allows deployment only from the `main` branch.
+This allows deployment only from the `main` branch of this exact GitHub repository. If the repository is recreated, transferred, or GitHub OIDC customization changes, the numeric IDs in this value may need to be updated.
 
 Copy the role ARN. It will look like:
 
@@ -677,7 +679,42 @@ jobs:
             --paths "/admin/*" "/admin/index.html"
 ```
 
-## 14. Add Lint Or Tests If Available
+## 14. Temporary OIDC Debug Step
+
+If GitHub Actions fails at this step:
+
+```text
+Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity
+```
+
+then the IAM role trust policy does not match the OIDC identity that GitHub is sending.
+
+Add this temporary step before `Configure AWS credentials`:
+
+```yaml
+      - name: Debug GitHub OIDC claims
+        run: |
+          TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")
+          TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
+          echo "$TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq .
+```
+
+Then rerun the workflow and check the value of:
+
+```json
+"sub": "..."
+```
+
+The IAM role trust policy must match that `sub` value exactly.
+
+For this repo, the observed value was:
+
+```text
+repo:Maruf346@117565778/SocialWiFi-Admin-Dashboard@1361011002:ref:refs/heads/main
+```
+
+After the deployment role works, remove the debug step from the workflow. It does not expose AWS credentials, but there is no need to keep printing token claims permanently.
+## 15. Add Lint Or Tests If Available
 
 If your project has linting, add this before build:
 
@@ -697,7 +734,7 @@ If your project has tests:
 
 Only add this if tests are already configured.
 
-## 15. Important React Router Configuration
+## 16. Important React Router Configuration
 
 If deploying to:
 
@@ -735,7 +772,7 @@ export default defineConfig({
 
 For the recommended subdomain setup, avoid `/admin/` basename inside React unless you intentionally want the app hosted under a path.
 
-## 16. Environment Variables
+## 17. Environment Variables
 
 Frontend environment variables are baked into the build.
 
@@ -782,7 +819,7 @@ Then update the workflow build step:
 
 Do not put sensitive backend secrets in frontend environment variables. Anything included in a frontend build is visible to users in the browser.
 
-## 17. First Manual Deployment Test
+## 18. First Manual Deployment Test
 
 Before relying fully on CI/CD, you can test locally:
 
@@ -813,7 +850,7 @@ aws cloudfront create-invalidation \
 
 After this works, GitHub Actions should work with the same S3 and CloudFront setup.
 
-## 18. Deployment Flow After Setup
+## 19. Deployment Flow After Setup
 
 Once everything is configured:
 
@@ -831,7 +868,7 @@ Merge pull request into main
   -> admin.yourdomain.com serves the new version
 ```
 
-## 19. Later: Team Dashboard Deployment
+## 20. Later: Team Dashboard Deployment
 
 For the team dashboard repo, reuse:
 
@@ -877,7 +914,7 @@ team.yourdomain.com  -> rightroute-dashboard/team/
 
 Same S3 bucket, separate prefixes, separate deployment roles.
 
-## 20. Checklist
+## 21. Checklist
 
 AWS:
 
@@ -912,4 +949,7 @@ App:
 - build command works
 - routing works after refresh
 - CloudFront cache invalidates after deploy
+
+
+
 
