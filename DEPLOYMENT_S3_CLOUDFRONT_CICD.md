@@ -908,7 +908,7 @@ GitHub:
 
 App:
 
-- production API URL configured
+- production API URL configured 
 - build command works
 - routing works after refresh
 - CloudFront cache invalidates after deploy
