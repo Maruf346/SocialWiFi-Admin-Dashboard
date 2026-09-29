@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { supportApi } from "../../../api/supportApi";
 
 const PAGE_SIZE = 10;
-
 const CATEGORY_OPTIONS = [
   ["ACCOUNT_LOGIN", "Account and Login Issues"],
   ["BILLING_SUBSCRIPTION", "Billing and Subscription Issues"],
@@ -16,13 +15,7 @@ const CATEGORY_OPTIONS = [
   ["FEATURE_REQUEST", "Feature Request or Suggestion"],
   ["GENERAL_OTHER", "General Question or Other"],
 ];
-
-const PRIORITY_OPTIONS = [
-  ["LOW", "Low"],
-  ["NORMAL", "Normal"],
-  ["HIGH", "High"],
-  ["URGENT", "Urgent"],
-];
+const STATUS_OPTIONS = [["NEW", "New"], ["OPEN", "Open"], ["WAITING_CUSTOMER", "Waiting for Customer"], ["WAITING_INTERNAL", "Waiting for Internal Team"], ["RESOLVED", "Resolved"], ["CLOSED", "Closed"]];
 
 const statusClass = (status) => {
   if (status === "CLOSED" || status === "RESOLVED") return "bg-gray-200 text-gray-700";
@@ -38,7 +31,6 @@ const normalizeTicket = (ticket) => ({
   status: ticket.status,
   statusLabel: ticket.status_display || ticket.status,
   customer: ticket.customer_display_name || ticket.customer_name || "Unknown",
-  customerEmail: ticket.customer_email || "",
   category: ticket.main_category,
   categoryLabel: ticket.category_abbrev || ticket.main_category,
   subject: ticket.subject || "-",
@@ -68,14 +60,14 @@ const TicketTable = ({ title, tickets, selected, onToggle, onToggleAll, onApplyA
           <option value="delete">Delete selected</option>
           <option value="assign">Assign to Admin</option>
         </select>
-        <button type="button" onClick={handleGo} className="h-8 border border-[#ccc] bg-[#f4f4f4] px-3 text-xs hover:bg-[#e4e4e4]">Go</button>
+        <button type="button" onClick={handleGo} className="h-8 border border-[#ccc] bg-[#f4f4f4] px-3 text-xs hover:bg-[#e4e4e4] cursor-pointer">Go</button>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="bg-[#f3f3f3] text-left text-xs uppercase text-[#999]">
-              <th className="w-9 px-2 py-2"><input type="checkbox" checked={isAllSelected} onChange={(event) => onToggleAll(event.target.checked)} /></th>
+              <th className="w-9 px-2 py-2"><input type="checkbox" checked={isAllSelected} onChange={(event) => onToggleAll(event.target.checked)} aria-label={`Select all ${title.toLowerCase()}`} /></th>
               <th className="px-2 py-2">Ticket ID</th>
               <th className="px-2 py-2">Priority</th>
               <th className="px-2 py-2">Status</th>
@@ -92,11 +84,9 @@ const TicketTable = ({ title, tickets, selected, onToggle, onToggleAll, onApplyA
               <tr><td colSpan={8} className="py-6 text-center text-[#888]">No tickets found.</td></tr>
             ) : (
               tickets.map((ticket) => (
-                <tr key={ticket.id} onClick={() => onRowClick(ticket.id)} className="cursor-pointer border-b border-white bg-[#f8f8f8] transition-colors even:bg-[#fcfcfc] hover:bg-[#f0f3fa]">
-                  <td className="px-2 py-2" onClick={(event) => event.stopPropagation()}>
-                    <input type="checkbox" checked={selected.includes(ticket.id)} onChange={() => onToggle(ticket.id)} />
-                  </td>
-                  <td className="px-2 py-2"><button type="button" className="font-semibold underline underline-offset-2 hover:text-[#ff823d]">{ticket.ticketNumber}</button></td>
+                <tr key={ticket.id} onClick={() => onRowClick(ticket.id)} className="border-b border-white bg-[#f8f8f8] even:bg-[#fcfcfc] hover:bg-[#f0f3fa] cursor-pointer transition-colors">
+                  <td className="px-2 py-2" onClick={(event) => event.stopPropagation()}><input type="checkbox" checked={selected.includes(ticket.id)} onChange={() => onToggle(ticket.id)} aria-label={`Select ${ticket.ticketNumber}`} /></td>
+                  <td className="px-2 py-2"><button type="button" onClick={(event) => { event.stopPropagation(); onRowClick(ticket.id); }} className="font-semibold underline underline-offset-2 hover:text-[#ff823d] cursor-pointer">{ticket.ticketNumber}</button></td>
                   <td className="px-2">{ticket.priorityLabel}</td>
                   <td className="px-2"><span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${statusClass(ticket.status)}`}>{ticket.statusLabel}</span></td>
                   <td className="px-2">{ticket.customer}</td>
@@ -111,9 +101,9 @@ const TicketTable = ({ title, tickets, selected, onToggle, onToggleAll, onApplyA
       </div>
       <div className="flex items-center justify-between border-b border-[#eee] py-3 text-xs text-[#777]">
         <span>Showing {start}-{end} of {count} results</span>
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2 underline cursor-pointer">
           <button type="button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="disabled:text-[#aaa]">Previous</button>
-          <span>{page} / {totalPages}</span>
+          <span>{page}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="disabled:text-[#aaa]">Next</button>
         </span>
       </div>
@@ -123,44 +113,56 @@ const TicketTable = ({ title, tickets, selected, onToggle, onToggleAll, onApplyA
 
 const SupportTicket = () => {
   const navigate = useNavigate();
-  const [scope, setScope] = useState("live");
-  const [tickets, setTickets] = useState([]);
+  const [live, setLive] = useState([]);
+  const [archived, setArchived] = useState([]);
+  const [liveCount, setLiveCount] = useState(0);
+  const [archivedCount, setArchivedCount] = useState(0);
+  const [livePage, setLivePage] = useState(1);
+  const [archivedPage, setArchivedPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [priority, setPriority] = useState("");
-  const [stats, setStats] = useState({ live_tickets_count: 0, archived_tickets_count: 0 });
-  const [page, setPage] = useState(1);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState("");
   const [assignees, setAssignees] = useState([]);
+  const [stats, setStats] = useState({ live_tickets_count: 0, archived_tickets_count: 0 });
+  const [loading, setLoading] = useState(true);
 
-  const query = useMemo(() => ({ scope, search, main_category: category, priority, page, page_size: PAGE_SIZE }), [category, page, priority, scope, search]);
-  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const liveTotalPages = Math.max(1, Math.ceil(liveCount / PAGE_SIZE));
+  const archivedTotalPages = Math.max(1, Math.ceil(archivedCount / PAGE_SIZE));
+
+  const baseQuery = useMemo(() => ({ search, main_category: category }), [category, search]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 2500);
   };
 
+  const applyClientStatusFilter = (items) => (status ? items.filter((ticket) => ticket.status === status) : items);
+
   const loadTickets = async () => {
     setLoading(true);
     try {
-      const [listResponse, statsResponse] = await Promise.all([
-        supportApi.listTickets(query),
+      const [liveResponse, archivedResponse, statsResponse] = await Promise.all([
+        supportApi.listTickets({ ...baseQuery, scope: "live", page: livePage, page_size: PAGE_SIZE }),
+        supportApi.listTickets({ ...baseQuery, scope: "archived", page: archivedPage, page_size: PAGE_SIZE }),
         supportApi.getStats(),
       ]);
-      const results = Array.isArray(listResponse?.results) ? listResponse.results : [];
-      setTickets(results.map(normalizeTicket));
-      setCount(Number(listResponse?.count || results.length));
+      const liveResults = (Array.isArray(liveResponse?.results) ? liveResponse.results : []).map(normalizeTicket);
+      const archivedResults = (Array.isArray(archivedResponse?.results) ? archivedResponse.results : []).map(normalizeTicket);
+      setLive(applyClientStatusFilter(liveResults));
+      setArchived(applyClientStatusFilter(archivedResults));
+      setLiveCount(Number(liveResponse?.count || liveResults.length));
+      setArchivedCount(Number(archivedResponse?.count || archivedResults.length));
       setStats(statsResponse || { live_tickets_count: 0, archived_tickets_count: 0 });
     } catch (err) {
       showToast(err.message || "Failed to load support tickets.");
-      setTickets([]);
-      setCount(0);
+      setLive([]);
+      setArchived([]);
+      setLiveCount(0);
+      setArchivedCount(0);
     } finally {
       setLoading(false);
     }
@@ -168,30 +170,29 @@ const SupportTicket = () => {
 
   useEffect(() => {
     loadTickets();
-  }, [query]);
+  }, [baseQuery, livePage, archivedPage, status]);
 
   useEffect(() => {
     supportApi.listAssignees().then(setAssignees).catch(() => setAssignees([]));
   }, []);
 
   const toggleSelected = (id) => setSelected((current) => current.includes(id) ? current.filter((ticketId) => ticketId !== id) : [...current, id]);
-  const toggleAll = (checked) => setSelected((current) => checked ? Array.from(new Set([...current, ...tickets.map((ticket) => ticket.id)])) : current.filter((id) => !tickets.some((ticket) => ticket.id === id)));
+  const toggleAllLive = (checked) => setSelected((current) => checked ? Array.from(new Set([...current, ...live.map((ticket) => ticket.id)])) : current.filter((id) => !live.some((ticket) => ticket.id === id)));
+  const toggleAllArchived = (checked) => setSelected((current) => checked ? Array.from(new Set([...current, ...archived.map((ticket) => ticket.id)])) : current.filter((id) => !archived.some((ticket) => ticket.id === id)));
 
   const handleApplyAction = async (action) => {
     if (selected.length === 0) {
       showToast("No tickets selected");
       return;
     }
-
     if (action === "assign") {
       setAssignModalOpen(true);
       return;
     }
-
     try {
       if (action === "close") {
         await Promise.all(selected.map((id) => supportApi.archiveTicket(id)));
-        showToast("Selected tickets closed and archived");
+        showToast("Selected tickets marked as Closed and moved to Archives");
       } else if (action === "delete") {
         await Promise.all(selected.map((id) => supportApi.deleteTicket(id)));
         showToast("Selected tickets deleted");
@@ -209,7 +210,6 @@ const SupportTicket = () => {
       showToast("Please choose an Admin user");
       return;
     }
-
     try {
       await Promise.all(selected.map((id) => supportApi.assignTicket(id, { assigned_to_id: assignee.id, assigned_name: assignee.full_name })));
       setAssignModalOpen(false);
@@ -222,73 +222,38 @@ const SupportTicket = () => {
     }
   };
 
-  const handleScopeChange = (nextScope) => {
-    setScope(nextScope);
-    setPage(1);
+  const refresh = () => {
+    setSearch("");
+    setCategory("");
+    setStatus("");
     setSelected([]);
+    setLivePage(1);
+    setArchivedPage(1);
+    loadTickets();
   };
 
   return (
     <div className="min-h-full bg-white px-2 py-3 text-[#777] md:px-8 md:py-6">
-      {toastMessage && <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2 text-sm text-white shadow-lg">{toastMessage}</div>}
+      {toastMessage && <div className="fixed bottom-5 right-5 z-50 rounded bg-[#151d56] px-4 py-2 text-sm text-white shadow-lg transition-all">{toastMessage}</div>}
 
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-xl font-normal text-[#999] md:text-2xl">Support tickets</h1>
         <div className="flex gap-2">
-          <button type="button" onClick={loadTickets} className="rounded-full bg-[#777] px-3 py-1 text-xs text-white hover:bg-[#666]">REFRESH PAGE</button>
-          <button type="button" onClick={() => navigate("/dashboard/create-ticket")} className="rounded-full bg-[#777] px-3 py-1 text-xs text-white hover:bg-[#666]">CREATE TICKET <span className="text-base font-bold">+</span></button>
+          <button type="button" onClick={refresh} className="rounded-full bg-[#777] px-3 py-1 text-xs text-white hover:bg-[#666] cursor-pointer">REFRESH PAGE</button>
+          <button type="button" onClick={() => navigate("/dashboard/create-ticket")} className="rounded-full bg-[#777] px-3 py-1 text-xs text-white hover:bg-[#666] cursor-pointer">CREATE TICKET <span className="text-base font-bold">+</span></button>
         </div>
       </div>
 
-      <div className="rounded border border-[#e5e5e5] bg-[#fafafa] px-3 py-2 text-sm">
-        {stats.live_tickets_count || 0} Live Tickets &nbsp; | &nbsp; {stats.archived_tickets_count || 0} Archived
-      </div>
+      <div className="rounded border border-[#e5e5e5] bg-[#fafafa] px-3 py-2 text-sm">{stats.live_tickets_count || 0} Live Tickets &nbsp; | &nbsp; {stats.archived_tickets_count || 0} Archived</div>
 
       <div className="mt-5 flex flex-wrap items-end gap-3 text-sm">
-        <label>
-          Search tickets:
-          <span className="ml-2 inline-flex gap-1">
-            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="h-8 w-56 border border-[#ccc] px-2 outline-none" />
-          </span>
-        </label>
-        <label>
-          Scope:
-          <select value={scope} onChange={(event) => handleScopeChange(event.target.value)} className="ml-2 h-8 border border-[#ccc] bg-white px-2">
-            <option value="live">Live</option>
-            <option value="archived">Archived</option>
-            <option value="draft">Draft</option>
-          </select>
-        </label>
-        <label>
-          Category:
-          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className="ml-2 h-8 border border-[#ccc] bg-white px-2">
-            <option value="">All categories</option>
-            {CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          Priority:
-          <select value={priority} onChange={(event) => { setPriority(event.target.value); setPage(1); }} className="ml-2 h-8 border border-[#ccc] bg-white px-2">
-            <option value="">All priorities</option>
-            {PRIORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
+        <label>Search tickets:<span className="ml-2 inline-flex gap-1"><input value={search} onChange={(event) => { setSearch(event.target.value); setLivePage(1); setArchivedPage(1); }} className="h-8 w-56 border border-[#ccc] px-2 outline-none" /><button type="button" onClick={loadTickets} className="h-8 border border-[#ccc] bg-[#f4f4f4] px-2 text-xs cursor-pointer">Go</button></span></label>
+        <label>Filters:{" "}<select value={category} onChange={(event) => { setCategory(event.target.value); setLivePage(1); setArchivedPage(1); }} className="ml-2 h-8 border border-[#ccc] bg-white px-2"><option value="">Main Category</option>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <select value={status} onChange={(event) => { setStatus(event.target.value); setLivePage(1); setArchivedPage(1); }} className="h-8 border border-[#ccc] bg-white px-2"><option value="">Subcategory</option>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
 
-      <TicketTable
-        title={scope === "archived" ? "Archives" : scope === "draft" ? "Draft Tickets" : "Live Tickets"}
-        tickets={tickets}
-        selected={selected}
-        onToggle={toggleSelected}
-        onToggleAll={toggleAll}
-        onApplyAction={handleApplyAction}
-        onRowClick={(ticketId) => navigate(`/dashboard/support-tickets/${ticketId}`)}
-        loading={loading}
-        page={page}
-        totalPages={totalPages}
-        count={count}
-        onPageChange={setPage}
-      />
+      <TicketTable title="Live Tickets" tickets={live} selected={selected} onToggle={toggleSelected} onToggleAll={toggleAllLive} onApplyAction={handleApplyAction} onRowClick={(ticketId) => navigate(`/dashboard/support-tickets/${ticketId}`)} loading={loading} page={livePage} totalPages={liveTotalPages} count={liveCount} onPageChange={setLivePage} />
+      <TicketTable title="Archives" tickets={archived} selected={selected} onToggle={toggleSelected} onToggleAll={toggleAllArchived} onApplyAction={handleApplyAction} onRowClick={(ticketId) => navigate(`/dashboard/support-tickets/${ticketId}`)} loading={loading} page={archivedPage} totalPages={archivedTotalPages} count={archivedCount} onPageChange={setArchivedPage} />
 
       {assignModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -296,19 +261,9 @@ const SupportTicket = () => {
             <h2 className="mb-2 text-base font-bold text-[#222]">Assign Ticket(s) to Admin</h2>
             <p className="mb-4 text-xs text-[#666]">Choose an admin user to assign <strong>{selected.length} selected ticket(s)</strong>:</p>
             <div className="max-h-60 space-y-2 overflow-y-auto border border-[#eee] p-2">
-              {assignees.map((admin) => (
-                <label key={admin.id} className={`flex cursor-pointer items-center justify-between rounded border p-2 text-xs transition-colors ${selectedAssignee === String(admin.id) ? "border-[#ff823d] bg-[#fff3eb]" : "border-transparent hover:bg-gray-50"}`}>
-                  <div className="flex items-center gap-2">
-                    <input type="radio" name="assignee-admin" checked={selectedAssignee === String(admin.id)} onChange={() => setSelectedAssignee(String(admin.id))} className="accent-[#ff823d]" />
-                    <div><p className="font-semibold text-[#333]">{admin.full_name}</p><p className="text-[11px] text-[#777]">{admin.email}</p></div>
-                  </div>
-                </label>
-              ))}
+              {assignees.map((admin) => <label key={admin.id} className={`flex cursor-pointer items-center justify-between rounded p-2 text-xs transition-colors ${selectedAssignee === String(admin.id) ? "bg-[#fff3eb] border border-[#ff823d]" : "hover:bg-gray-50 border border-transparent"}`}><div className="flex items-center gap-2"><input type="radio" name="assignee-admin" checked={selectedAssignee === String(admin.id)} onChange={() => setSelectedAssignee(String(admin.id))} className="accent-[#ff823d]" /><div><p className="font-semibold text-[#333]">{admin.full_name}</p><p className="text-[11px] text-[#777]">{admin.email}</p></div></div></label>)}
             </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setAssignModalOpen(false)} className="rounded border border-[#ccc] px-3 py-1.5 text-xs text-[#666] hover:bg-gray-100">Cancel</button>
-              <button type="button" onClick={handleConfirmAssign} className="rounded bg-[#ff823d] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e06d2c]">Assign</button>
-            </div>
+            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setAssignModalOpen(false)} className="rounded border border-[#ccc] px-3 py-1.5 text-xs text-[#666] hover:bg-gray-100 cursor-pointer">Cancel</button><button type="button" onClick={handleConfirmAssign} className="rounded bg-[#ff823d] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e06d2c] cursor-pointer">Assign</button></div>
           </div>
         </div>
       )}

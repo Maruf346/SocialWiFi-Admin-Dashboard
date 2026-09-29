@@ -107,7 +107,7 @@ const CreateTicket = () => {
       return;
     }
     setFiles((current) => [...current, ...selectedFiles]);
-    setFileError("Attachments will be uploaded in the next integration pass after ticket creation.");
+    setFileError("");
     event.target.value = "";
   };
 
@@ -159,12 +159,18 @@ const CreateTicket = () => {
     setMessage("");
   };
 
+  const uploadSelectedFiles = async (ticketId) => {
+    if (!ticketId || files.length === 0) return;
+    await Promise.all(files.map((file) => supportApi.uploadAttachment(ticketId, file)));
+  };
+
   const saveDraft = async () => {
     try {
       setSubmitting(true);
       const draft = await supportApi.createTicket(buildPayload(true));
+      await uploadSelectedFiles(draft.id);
       setDrafts((current) => [draft, ...current]);
-      setMessage("Draft saved in backend.");
+      setMessage(files.length > 0 ? "Draft saved in backend with attachments." : "Draft saved in backend.");
     } catch (err) {
       setMessage(err.message || "Failed to save draft.");
     } finally {
@@ -214,6 +220,7 @@ const CreateTicket = () => {
     try {
       setSubmitting(true);
       const ticket = await supportApi.createTicket(buildPayload(false));
+      await uploadSelectedFiles(ticket.id);
       setMessage(`${ticket.ticket_number || "Ticket"} created.`);
       navigate("/dashboard/support-tickets");
     } catch (err) {
@@ -306,3 +313,4 @@ const CreateTicket = () => {
 };
 
 export default CreateTicket;
+

@@ -56,6 +56,18 @@ export const supportApi = {
     );
   },
 
+  async uploadAttachment(id, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return unwrap(
+      await apiRequest(`/api/v1/supports/tickets/${id}/attachments/`, {
+        method: "POST",
+        body: formData,
+      })
+    );
+  },
+
   async addMessage(id, body) {
     return unwrap(
       await apiRequest(`/api/v1/supports/tickets/${id}/messages/`, {
