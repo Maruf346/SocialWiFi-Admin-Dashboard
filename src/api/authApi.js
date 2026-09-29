@@ -1,6 +1,7 @@
 ﻿import { apiRequest } from "./client";
 import { authStorage } from "../utils/authStorage";
 
+const RESET_OTP_KEY = "rightroute_admin_reset_otp";
 const extractLoginData = (response) => response?.data || response;
 
 export const authApi = {
@@ -46,32 +47,33 @@ export const authApi = {
 
   async requestPasswordReset(email) {
     authStorage.setPendingEmail(email);
-    return apiRequest("/api/v1/auth/forget-password/", {
+    sessionStorage.removeItem(RESET_OTP_KEY);
+
+    return apiRequest("/api/v1/auth/admin/forget-password/", {
       method: "POST",
       auth: false,
       body: { email },
     });
   },
 
-  async verifyResetOtp({ email, otpCode }) {
-    sessionStorage.setItem("rightroute_admin_reset_otp", otpCode);
-    return apiRequest("/api/v1/auth/verify-otp/", {
-      method: "POST",
-      auth: false,
-      body: { email, otp_code: otpCode, purpose: "RESET" },
-    });
+  async verifyResetOtp({ otpCode }) {
+    sessionStorage.setItem(RESET_OTP_KEY, otpCode);
+    return { success: true };
   },
 
   async resendResetOtp(email) {
-    return apiRequest("/api/v1/auth/resend-otp/", {
+    authStorage.setPendingEmail(email);
+    sessionStorage.removeItem(RESET_OTP_KEY);
+
+    return apiRequest("/api/v1/auth/admin/forget-password/", {
       method: "POST",
       auth: false,
-      body: { email, purpose: "RESET" },
+      body: { email },
     });
   },
 
   async resetPassword({ email, otpCode, newPassword, confirmPassword }) {
-    return apiRequest("/api/v1/auth/reset-password/", {
+    return apiRequest("/api/v1/auth/admin/reset-password/", {
       method: "POST",
       auth: false,
       body: {

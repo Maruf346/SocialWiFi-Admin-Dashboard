@@ -50,7 +50,7 @@ const VerifyOtp = () => {
     try {
       setLoading(true);
       setErrorMessage("");
-      await authApi.verifyResetOtp({ email, otpCode });
+      await authApi.verifyResetOtp({ otpCode });
       navigate("/reset-password", { state: { email, otpCode } });
     } catch (error) {
       setErrorMessage(error.message || "Unable to verify code.");
@@ -78,3 +78,4 @@ const VerifyOtp = () => {
 };
 
 export default VerifyOtp;
+
