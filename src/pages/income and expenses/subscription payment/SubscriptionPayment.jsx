@@ -1,151 +1,184 @@
-import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from "react";
+import { financeApi } from "../../../api/financeApi";
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const formatCurrency = (value) => `$${value.toLocaleString()}`
+const formatCurrency = (value) => {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: amount >= 1000 ? 0 : 2,
+  }).format(amount);
+};
 
-const dailyIncome = {
-  '2026-08-29': 1420,
-  '2026-08-28': 1320,
-  '2026-08-27': 1180,
-  '2026-08-26': 1120,
-  '2026-08-05': 2530,
-  '2026-08-12': 1870,
-  '2026-08-18': 3240,
-  '2026-08-23': 1240,
-  '2026-08-28': 950,
-}
+const toDateKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const buildCalendarDays = (monthDate) => {
-  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
-  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0)
-  const cells = []
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const cells = [];
 
   for (let index = 0; index < firstDay.getDay(); index += 1) {
-    cells.push(null)
+    cells.push(null);
   }
 
   for (let day = 1; day <= lastDay.getDate(); day += 1) {
-    cells.push(day)
+    cells.push(day);
   }
 
   while (cells.length % 7 !== 0) {
-    cells.push(null)
+    cells.push(null);
   }
 
-  return cells
-}
+  return cells;
+};
 
 const formatDisplayDate = (date) =>
-  new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  }).format(date)
+  new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(date);
 
 const formatDisplayDateWithYear = (date) =>
-  new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date)
+  new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 
-const getMonthIncome = (year, monthIndex) => {
-  let total = 0
+const getSummaryText = (summary, fallbackLabel) => {
+  if (summary?.display_bar_text) return summary.display_bar_text;
 
-  Object.entries(dailyIncome).forEach(([key, value]) => {
-    const [entryYear, entryMonth] = key.split('-').map(Number)
-    if (entryYear === year && entryMonth - 1 === monthIndex) {
-      total += value
-    }
-  })
-
-  return total
-}
-
-const getYearIncome = (year) => {
-  let total = 0
-
-  Object.entries(dailyIncome).forEach(([key, value]) => {
-    const [entryYear] = key.split('-').map(Number)
-    if (entryYear === year) {
-      total += value
-    }
-  })
-
-  return total
-}
+  const amount = summary?.formatted_total || formatCurrency(summary?.total_amount);
+  const label = summary?.formatted_label || fallbackLabel;
+  return `${label}: ${amount}`;
+};
 
 const SubscriptionPayment = () => {
-  const today = new Date()
-  const [selectedDate, setSelectedDate] = useState(today)
-  const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
-  const [calendarMode, setCalendarMode] = useState('day')
+  const today = new Date();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [calendarMode, setCalendarMode] = useState("day");
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const calendarDays = useMemo(
-    () => buildCalendarDays(visibleMonth),
-    [visibleMonth],
-  )
+  const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
 
-  const dateKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
-  const yearSelected = calendarMode === 'year'
-  const monthSelected = calendarMode === 'month'
+  const yearSelected = calendarMode === "year";
+  const monthSelected = calendarMode === "month";
 
-  const selectedValue = yearSelected
-    ? getYearIncome(visibleMonth.getFullYear())
-    : monthSelected
-      ? getMonthIncome(visibleMonth.getFullYear(), visibleMonth.getMonth())
-      : dailyIncome[dateKey] ?? 0
+  const monthLabel = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(visibleMonth);
 
-  const monthLabel = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    year: 'numeric',
-  }).format(visibleMonth)
+  const query = useMemo(() => {
+    if (yearSelected) {
+      return {
+        period: "year",
+        year: visibleMonth.getFullYear(),
+      };
+    }
 
-  const handlePrevMonth = () => {
-    setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))
-  }
+    if (monthSelected) {
+      return {
+        period: "month",
+        year: visibleMonth.getFullYear(),
+        month: visibleMonth.getMonth() + 1,
+      };
+    }
 
-  const handleNextMonth = () => {
-    setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))
-  }
-
-  const handleYearChange = (direction) => {
-    const nextYear = visibleMonth.getFullYear() + direction
-    setVisibleMonth(new Date(nextYear, visibleMonth.getMonth(), 1))
-  }
-
-  const handleMonthSelect = (monthIndex) => {
-    setVisibleMonth(new Date(visibleMonth.getFullYear(), monthIndex, 1))
-    setCalendarMode('month')
-  }
-
-  const handleYearSelect = (year) => {
-    setVisibleMonth(new Date(year, visibleMonth.getMonth(), 1))
-    setCalendarMode('year')
-  }
-
-  const isSelectedDay = (day) => {
-    if (!day) return false
-    return (
-      selectedDate.getFullYear() === visibleMonth.getFullYear() &&
-      selectedDate.getMonth() === visibleMonth.getMonth() &&
-      selectedDate.getDate() === day
-    )
-  }
+    return {
+      period: "day",
+      date: toDateKey(selectedDate),
+      year: selectedDate.getFullYear(),
+      month: selectedDate.getMonth() + 1,
+      day: selectedDate.getDate(),
+    };
+  }, [monthSelected, selectedDate, visibleMonth, yearSelected]);
 
   const periodLabel = yearSelected
     ? `${visibleMonth.getFullYear()}`
     : monthSelected
-      ? `${new Intl.DateTimeFormat('en-US', { month: 'long' }).format(visibleMonth)} ${visibleMonth.getFullYear()}`
-      : formatDisplayDateWithYear(selectedDate)
+      ? `${new Intl.DateTimeFormat("en-US", { month: "long" }).format(visibleMonth)} ${visibleMonth.getFullYear()}`
+      : formatDisplayDateWithYear(selectedDate);
 
-  const yearOptions = Array.from({ length: 12 }, (_, index) => visibleMonth.getFullYear() - 5 + index)
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSummary = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const response = await financeApi.getSubscriptionPaymentsSummary(query);
+        if (!isMounted) return;
+        setSummary(response);
+      } catch (err) {
+        if (!isMounted) return;
+        setSummary(null);
+        setError(err.message || "Failed to load subscription payment summary.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [query]);
+
+  const handlePrevMonth = () => {
+    setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1));
+  };
+
+  const handleYearChange = (direction) => {
+    const nextYear = visibleMonth.getFullYear() + direction;
+    setVisibleMonth(new Date(nextYear, visibleMonth.getMonth(), 1));
+  };
+
+  const handleMonthSelect = (monthIndex) => {
+    setVisibleMonth(new Date(visibleMonth.getFullYear(), monthIndex, 1));
+    setCalendarMode("month");
+  };
+
+  const handleYearSelect = (year) => {
+    setVisibleMonth(new Date(year, visibleMonth.getMonth(), 1));
+    setCalendarMode("year");
+  };
+
+  const handleDaySelect = (day) => {
+    if (!day) return;
+    const nextDate = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
+    setSelectedDate(nextDate);
+    setCalendarMode("day");
+  };
+
+  const isSelectedDay = (day) => {
+    if (!day) return false;
+    return (
+      selectedDate.getFullYear() === visibleMonth.getFullYear() &&
+      selectedDate.getMonth() === visibleMonth.getMonth() &&
+      selectedDate.getDate() === day
+    );
+  };
+
+  const yearOptions = Array.from({ length: 12 }, (_, index) => visibleMonth.getFullYear() - 5 + index);
+  const summaryText = loading ? "Loading subscription payment summary..." : getSummaryText(summary, periodLabel);
 
   return (
     <div className="min-h-full bg-white px-2 py-3 text-[#666] md:px-8 md:py-6">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex items-center justify-between">
         <h1 className="text-xl font-normal text-[#999] md:text-2xl">Subscription payments</h1>
       </div>
 
@@ -155,62 +188,72 @@ const SubscriptionPayment = () => {
             <span className="text-[18px] font-medium leading-none">{formatDisplayDate(selectedDate)}</span>
           </div>
 
-          {calendarMode === 'day' ? (
+          {calendarMode === "day" ? (
             <>
-              <div className="mb-3 flex items-center justify-between px-4 pt-2 pb-1">
+              <div className="mb-3 flex items-center justify-between px-4 pb-1 pt-2">
                 <button
                   type="button"
-                  onClick={() => setCalendarMode('month')}
+                  onClick={() => setCalendarMode("month")}
                   className="text-left text-[20px] font-medium text-[#333]"
                 >
                   {monthLabel}
                 </button>
                 <div className="flex items-center gap-2 text-[#666]">
-                  <button type="button" onClick={handlePrevMonth} aria-label="Previous month" className="text-[16px] leading-none">▲</button>
-                  <button type="button" onClick={handleNextMonth} aria-label="Next month" className="text-[16px] leading-none">▼</button>
+                  <button type="button" onClick={handlePrevMonth} aria-label="Previous month" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Prev
+                  </button>
+                  <button type="button" onClick={handleNextMonth} aria-label="Next month" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Next
+                  </button>
                 </div>
               </div>
 
               <div className="px-4 pb-4">
                 <div className="grid grid-cols-7 gap-1 text-center text-[13px] text-[#666]">
                   {WEEKDAYS.map((day) => (
-                    <div key={day} className="pb-2 font-medium">{day}</div>
+                    <div key={day} className="pb-2 font-medium">
+                      {day}
+                    </div>
                   ))}
 
                   {calendarDays.map((day, index) => (
                     <button
-                      key={`${day ?? 'empty'}-${index}`}
+                      key={`${day ?? "empty"}-${index}`}
                       type="button"
-                      onClick={() => day && setSelectedDate(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day))}
+                      onClick={() => handleDaySelect(day)}
                       className={`flex h-9 w-9 items-center justify-center rounded-full text-[14px] transition ${
-                        !day ? 'invisible' : 'text-[#555] hover:bg-[#e0e0e0]'
-                      } ${isSelectedDay(day) ? 'bg-[#f28d4d] text-white shadow-sm' : ''}`}
+                        !day ? "invisible" : "text-[#555] hover:bg-[#e0e0e0]"
+                      } ${isSelectedDay(day) ? "bg-[#f28d4d] text-white shadow-sm" : ""}`}
                     >
-                      {day ?? ''}
+                      {day ?? ""}
                     </button>
                   ))}
                 </div>
               </div>
             </>
-          ) : calendarMode === 'month' ? (
+          ) : calendarMode === "month" ? (
             <div className="px-4 py-3">
               <div className="mb-4 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => setCalendarMode('year')}
+                  onClick={() => setCalendarMode("year")}
                   className="text-[18px] font-medium text-[#333]"
                 >
                   {visibleMonth.getFullYear()}
                 </button>
                 <div className="flex items-center gap-2 text-[#666]">
-                  <button type="button" onClick={() => handleYearChange(-1)} aria-label="Previous year" className="text-[16px] leading-none">▲</button>
-                  <button type="button" onClick={() => handleYearChange(1)} aria-label="Next year" className="text-[16px] leading-none">▼</button>
+                  <button type="button" onClick={() => handleYearChange(-1)} aria-label="Previous year" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Prev
+                  </button>
+                  <button type="button" onClick={() => handleYearChange(1)} aria-label="Next year" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Next
+                  </button>
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-3 text-center">
                 {MONTHS.map((month, index) => {
-                  const isSelected = visibleMonth.getMonth() === index
+                  const isSelected = visibleMonth.getMonth() === index;
 
                   return (
                     <button
@@ -218,12 +261,12 @@ const SubscriptionPayment = () => {
                       type="button"
                       onClick={() => handleMonthSelect(index)}
                       className={`flex h-12 w-12 items-center justify-center rounded-full text-[16px] transition ${
-                        isSelected ? 'bg-[#f28d4d] text-white' : 'text-[#444] hover:bg-[#e8e8e8]'
+                        isSelected ? "bg-[#f28d4d] text-white" : "text-[#444] hover:bg-[#e8e8e8]"
                       }`}
                     >
                       {month}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -232,14 +275,18 @@ const SubscriptionPayment = () => {
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-[18px] font-medium text-[#333]">{visibleMonth.getFullYear()}</span>
                 <div className="flex items-center gap-2 text-[#666]">
-                  <button type="button" onClick={() => handleYearChange(-1)} aria-label="Previous year" className="text-[16px] leading-none">▲</button>
-                  <button type="button" onClick={() => handleYearChange(1)} aria-label="Next year" className="text-[16px] leading-none">▼</button>
+                  <button type="button" onClick={() => handleYearChange(-1)} aria-label="Previous year" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Prev
+                  </button>
+                  <button type="button" onClick={() => handleYearChange(1)} aria-label="Next year" className="rounded px-2 py-1 text-[12px] hover:bg-[#e0e0e0]">
+                    Next
+                  </button>
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-3 text-center">
                 {yearOptions.map((year) => {
-                  const isSelected = year === visibleMonth.getFullYear()
+                  const isSelected = year === visibleMonth.getFullYear();
 
                   return (
                     <button
@@ -247,31 +294,38 @@ const SubscriptionPayment = () => {
                       type="button"
                       onClick={() => handleYearSelect(year)}
                       className={`flex h-12 w-12 items-center justify-center rounded-full text-[16px] transition ${
-                        isSelected ? 'bg-[#f28d4d] text-white' : 'text-[#444] hover:bg-[#e8e8e8]'
+                        isSelected ? "bg-[#f28d4d] text-white" : "text-[#444] hover:bg-[#e8e8e8]"
                       }`}
                     >
                       {year}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-start pt-1">
-          <div className="w-full max-w-[420px] rounded-[8px] bg-[#f39f5f] px-4 py-3 text-[14px] font-medium text-white shadow-sm">
-            {periodLabel}: {formatCurrency(selectedValue)}
+        <div className="flex flex-col items-start gap-3 pt-1">
+          <div className="w-full max-w-[460px] rounded-[8px] bg-[#f39f5f] px-4 py-3 text-[14px] font-medium text-white shadow-sm">
+            {summaryText}
           </div>
+
+          {error && (
+            <div className="w-full max-w-[460px] rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {!error && summary?.start_date && summary?.end_date && (
+            <div className="w-full max-w-[460px] rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+              API period: {summary.start_date} to {summary.end_date}
+            </div>
+          )}
         </div>
       </div>
-
-   
     </div>
-  )
-}
+  );
+};
 
-export default SubscriptionPayment
-
-
-
+export default SubscriptionPayment;
