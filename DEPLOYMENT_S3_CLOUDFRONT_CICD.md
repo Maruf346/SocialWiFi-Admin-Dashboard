@@ -44,31 +44,30 @@ s3://rightroute-dashboard/team/
 Recommended:
 
 ```text
-https://admin.yourdomain.com/
-https://team.yourdomain.com/
+https://admin.getrightroute.app/
+https://team.getrightroute.app/
 ```
 
 This is cleaner than:
 
 ```text
-https://dashboard.yourdomain.com/admin/
-https://dashboard.yourdomain.com/team/
+https://dashboard.getrightroute.app/admin/
+https://dashboard.getrightroute.app/team/
 ```
 
 Why subdomains are recommended:
 
 - each dashboard can have clean frontend routes like `/users`, `/settings`, `/reports`
 - fewer issues with React Router basename configuration
-- easier to add separate CloudFront behaviors later if needed
+- can use one CloudFront distribution, with host-based routing added later for the team dashboard
 - clearer separation between admin and team products
 
-This guide assumes:
+This guide uses the live RightRoute domains:
 
 ```text
-admin.yourdomain.com
+admin.getrightroute.app
+team.getrightroute.app
 ```
-
-Replace that with your real domain.
 
 ## 2. Confirm The Build Output Folder
 
@@ -179,20 +178,20 @@ US East (N. Virginia) us-east-1
 Request a public certificate for:
 
 ```text
-admin.yourdomain.com
+admin.getrightroute.app
 ```
 
 If you want to prepare for the team dashboard now, request:
 
 ```text
-admin.yourdomain.com
-team.yourdomain.com
+admin.getrightroute.app
+team.getrightroute.app
 ```
 
 or use a wildcard:
 
 ```text
-*.yourdomain.com
+*.getrightroute.app
 ```
 
 Choose DNS validation.
@@ -219,8 +218,15 @@ Use the S3 bucket as the origin:
 
 ```text
 Origin domain: rightroute-dashboard.s3.<region>.amazonaws.com
+Origin path: /admin
 Origin access: Origin access control settings
 Create new OAC: Yes
+```
+
+The live admin dashboard uses `Origin path: /admin`. With that setting, a browser request for `/index.html` is fetched from:
+
+```text
+s3://rightroute-dashboard/admin/index.html
 ```
 
 Name:
@@ -243,29 +249,31 @@ Origin request policy: CORS-S3Origin, if needed
 Compress objects automatically: Yes
 ```
 
-### Alternate Domain Name
+### Alternate Domain Names
 
-Add:
+For the current admin dashboard, add:
 
 ```text
-admin.yourdomain.com
+admin.getrightroute.app
+```
+
+When the team dashboard is ready, use the same CloudFront distribution and add:
+
+```text
+team.getrightroute.app
 ```
 
 Select the ACM certificate you created in `us-east-1`.
 
 ### Default Root Object
 
-Set:
+Because the origin path is `/admin`, set the default root object to:
 
 ```text
-admin/index.html
+index.html
 ```
 
-This works well when the admin dashboard files are stored under:
-
-```text
-s3://rightroute-dashboard/admin/
-```
+Do not set this to `admin/index.html` when `Origin path` is already `/admin`, otherwise CloudFront may look for `/admin/admin/index.html`.
 
 ## 6. Add CloudFront SPA Error Responses
 
@@ -290,7 +298,7 @@ Add:
 ```text
 HTTP error code: 403
 Customize error response: Yes
-Response page path: /admin/index.html
+Response page path: /index.html
 HTTP response code: 200
 Error caching minimum TTL: 0
 ```
@@ -300,7 +308,7 @@ Add another:
 ```text
 HTTP error code: 404
 Customize error response: Yes
-Response page path: /admin/index.html
+Response page path: /index.html
 HTTP response code: 200
 Error caching minimum TTL: 0
 ```
@@ -355,13 +363,22 @@ If using Route 53:
 Go to:
 
 ```text
-Route 53 -> Hosted zones -> yourdomain.com -> Create record
+Route 53 -> Hosted zones -> getrightroute.app -> Create record
 ```
 
-Create:
+Create the admin record now:
 
 ```text
 Record name: admin
+Record type: A
+Alias: Yes
+Route traffic to: CloudFront distribution
+```
+
+When the team dashboard is ready, create another record pointing to the same distribution:
+
+```text
+Record name: team
 Record type: A
 Alias: Yes
 Route traffic to: CloudFront distribution
@@ -377,11 +394,14 @@ Route traffic to: CloudFront distribution
 
 If using another DNS provider:
 
-Create a CNAME:
+Create CNAME records that point to the same CloudFront distribution domain:
 
 ```text
-admin.yourdomain.com -> <your-cloudfront-domain>.cloudfront.net
+admin.getrightroute.app -> <your-cloudfront-domain>.cloudfront.net
+team.getrightroute.app  -> <your-cloudfront-domain>.cloudfront.net
 ```
+
+Only add the `team.getrightroute.app` app routing when the team dashboard files and CloudFront routing are ready.
 
 ## 9. Create GitHub OIDC Provider In AWS
 
@@ -676,7 +696,7 @@ jobs:
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/admin/*" "/admin/index.html"
+            --paths "/*"
 ```
 
 ## 14. Temporary OIDC Debug Step
@@ -714,7 +734,7 @@ repo:Maruf346@117565778/SocialWiFi-Admin-Dashboard@1361011002:ref:refs/heads/mai
 ```
 
 After the deployment role works, remove the debug step from the workflow. It does not expose AWS credentials, but there is no need to keep printing token claims permanently.
-## 14. Add Lint Or Tests If Available
+## 15. Add Lint Or Tests If Available
 
 If your project has linting, add this before build:
 
@@ -739,7 +759,7 @@ Only add this if tests are already configured.
 If deploying to:
 
 ```text
-https://admin.yourdomain.com/
+https://admin.getrightroute.app/
 ```
 
 Your app can usually keep normal routes:
@@ -753,7 +773,7 @@ Your app can usually keep normal routes:
 If deploying to:
 
 ```text
-https://dashboard.yourdomain.com/admin/
+https://dashboard.getrightroute.app/admin/
 ```
 
 Then the app may need a basename:
@@ -785,7 +805,7 @@ VITE_
 Example:
 
 ```text
-VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_API_BASE_URL=https://api.getrightroute.app
 ```
 
 For Create React App, variables must usually start with:
@@ -797,7 +817,7 @@ REACT_APP_
 Example:
 
 ```text
-REACT_APP_API_BASE_URL=https://api.yourdomain.com
+REACT_APP_API_BASE_URL=https://api.getrightroute.app
 ```
 
 In GitHub:
@@ -845,7 +865,7 @@ Then invalidate CloudFront:
 ```bash
 aws cloudfront create-invalidation \
   --distribution-id <DISTRIBUTION_ID> \
-  --paths "/admin/*"
+  --paths "/*"
 ```
 
 After this works, GitHub Actions should work with the same S3 and CloudFront setup.
@@ -865,54 +885,103 @@ Merge pull request into main
   -> GitHub Actions builds production files
   -> GitHub Actions uploads files to s3://rightroute-dashboard/admin/
   -> GitHub Actions invalidates CloudFront
-  -> admin.yourdomain.com serves the new version
+  -> admin.getrightroute.app serves the new version
 ```
 
-## 20. Later: Team Dashboard Deployment
+## 20. Later: Team Dashboard Deployment On The Same CloudFront Distribution
 
-For the team dashboard repo, reuse:
+For the team dashboard repo, reuse the same S3 bucket and the same CloudFront distribution:
 
 ```text
 S3 bucket: rightroute-dashboard
+CloudFront distribution: same distribution used by admin.getrightroute.app
 ```
 
-Deploy to:
+Deploy the team dashboard build output to:
 
 ```text
 s3://rightroute-dashboard/team/
 ```
 
-Use a separate IAM policy and role if you want stricter permissions:
+Use a separate IAM policy and role for stricter CI/CD permissions:
 
 ```text
 rightroute-team-dashboard-github-actions-role
 ```
 
-The team dashboard policy should only allow:
+The team dashboard policy should allow the team prefix only:
 
 ```text
+arn:aws:s3:::rightroute-dashboard
 arn:aws:s3:::rightroute-dashboard/team/*
 ```
 
-Use a separate CloudFront alternate domain:
+Add this alternate domain name to the existing CloudFront distribution:
 
 ```text
-team.yourdomain.com
+team.getrightroute.app
 ```
 
-Depending on your CloudFront setup, you can either:
-
-- add `team.yourdomain.com` to the same distribution
-- create a second CloudFront distribution for the team dashboard
-
-For operational clarity, separate CloudFront distributions are often easier:
+Then point DNS to the same CloudFront distribution:
 
 ```text
-admin.yourdomain.com -> rightroute-dashboard/admin/
-team.yourdomain.com  -> rightroute-dashboard/team/
+admin.getrightroute.app -> <same-cloudfront-domain>.cloudfront.net
+team.getrightroute.app  -> <same-cloudfront-domain>.cloudfront.net
 ```
 
-Same S3 bucket, separate prefixes, separate deployment roles.
+Important CloudFront routing note:
+
+CloudFront does not automatically choose a different S3 prefix based on the alternate domain name. If the distribution keeps `Origin path: /admin`, then `team.getrightroute.app` will also read from the `admin/` folder.
+
+So when the team dashboard is added to the same distribution, use one of these approaches:
+
+Recommended for one shared distribution:
+
+```text
+Origin path: leave empty
+CloudFront Function: rewrite requests by Host header
+admin.getrightroute.app -> /admin/...
+team.getrightroute.app  -> /team/...
+```
+
+Example CloudFront Function idea:
+
+```js
+function handler(event) {
+  var request = event.request;
+  var host = request.headers.host.value;
+  var prefix = host === 'team.getrightroute.app' ? '/team' : '/admin';
+  var uri = request.uri;
+
+  if (uri === '/' || !uri.includes('.')) {
+    request.uri = prefix + '/index.html';
+  } else {
+    request.uri = prefix + uri;
+  }
+
+  return request;
+}
+```
+
+With that shared-distribution setup:
+
+```text
+Default root object: optional/blank, because the function handles `/`
+SPA fallback: handled by the function for extensionless routes
+Invalidation path: /*
+```
+
+Current admin-only setup before team goes live:
+
+```text
+Origin path: /admin
+Default root object: index.html
+SPA 403 fallback: /index.html -> 200
+SPA 404 fallback: /index.html -> 200
+Invalidation path: /*
+```
+
+Same S3 bucket, same CloudFront distribution, separate S3 prefixes, separate deployment roles.
 
 ## 21. Checklist
 
