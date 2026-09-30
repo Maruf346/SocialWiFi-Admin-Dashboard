@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import Sidebar from '../components/sidebar/Sidebar'
 import Header from '../components/header/Header'
+import { authStorage } from '../utils/authStorage'
+import { canAccessPath } from '../utils/permissions'
 
 const breadcrumbMap = {
   '/dashboard': ['Home'],
@@ -25,6 +27,8 @@ const breadcrumbMap = {
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const user = authStorage.getUser();
+  const hasPageAccess = canAccessPath(location.pathname, user);
 
   const breadcrumb = location.pathname.startsWith('/dashboard/edit-user/')
     ? ['Home', 'Admin Users & Permissions', 'ADMIN USER EDIT']
@@ -90,7 +94,13 @@ const DashboardLayout = () => {
         </aside>
 
         <main className="min-h-[calc(100vh-100px)] min-w-0 overflow-x-hidden p-4 md:min-h-[calc(100vh-108px)] md:p-6">
-          <Outlet />
+          {hasPageAccess ? (
+            <Outlet />
+          ) : (
+            <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              You do not have permission to access this page.
+            </div>
+          )}
         </main>
       </div>
     </div>

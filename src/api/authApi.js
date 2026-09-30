@@ -1,8 +1,16 @@
-﻿import { apiRequest } from "./client";
+import { apiRequest } from "./client";
 import { authStorage } from "../utils/authStorage";
 
 const RESET_OTP_KEY = "rightroute_admin_reset_otp";
 const extractLoginData = (response) => response?.data || response;
+
+const normalizeAdminProfile = (data = {}) => ({
+  id: data.id,
+  email: data.email,
+  userType: data.user_type,
+  isSuperadmin: Boolean(data.is_superadmin),
+  permissions: Array.isArray(data.permissions) ? data.permissions : [],
+});
 
 export const authApi = {
   async requestAdminLogin({ email, password }) {
@@ -35,11 +43,7 @@ export const authApi = {
     authStorage.setSession({
       accessToken,
       refreshToken,
-      user: {
-        id: data.id,
-        email: data.email,
-        userType: data.user_type,
-      },
+      user: normalizeAdminProfile(data),
     });
 
     return response;
@@ -86,7 +90,10 @@ export const authApi = {
   },
 
   async getCurrentUser() {
-    return apiRequest("/api/v1/userinfo/");
+    const response = await apiRequest("/api/v1/auth/admin/me/");
+    const user = normalizeAdminProfile(extractLoginData(response));
+    authStorage.setSession({ user });
+    return user;
   },
 
   async logout() {
